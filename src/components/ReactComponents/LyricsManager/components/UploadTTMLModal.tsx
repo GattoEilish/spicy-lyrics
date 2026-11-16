@@ -6,7 +6,8 @@ import fetchLyrics from "../../../../utils/Lyrics/fetchLyrics";
 import ApplyLyrics from "../../../../utils/Lyrics/Global/Applyer";
 import { ParseTTML } from "../../../../utils/Lyrics/manager/parseTTML";
 import { ProcessLyrics } from "../../../../utils/Lyrics/ProcessLyrics";
-import { $currentLyricsData, $ttmlUploadMode } from "../../../../utils/stores";
+import { $currentLyricsData, $language, $ttmlUploadMode } from "../../../../utils/stores";
+import { t } from "../../../../utils/i18n.ts";
 import { LocalLyricsManager } from "../../../../utils/Lyrics/manager";
 import { ArrowLeftIcon, ClockIcon, DatabaseIcon, SpinnerIcon, UploadIcon } from "./Icons";
 import Logger from "../../../../utils/Logger.ts";
@@ -20,22 +21,23 @@ type UploadTTMLModalProps = {
   onDone: (mode: UploadMode) => void;
 };
 
-const MODES: { id: UploadMode; label: string; hint: string; icon: React.ReactNode }[] = [
+const getModes = (): { id: UploadMode; label: string; hint: string; icon: React.ReactNode }[] => [
   {
     id: "persistent",
-    label: "Save",
-    hint: "Store in the local DB — survives restarts",
+    label: t("upload.save"),
+    hint: t("upload.saveHint"),
     icon: <DatabaseIcon size={14} />,
   },
   {
     id: "temporary",
-    label: "Just once",
-    hint: "Apply to the current song only, until refresh",
+    label: t("upload.justOnce"),
+    hint: t("upload.justOnceHint"),
     icon: <ClockIcon size={14} />,
   },
 ];
 
 export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps) {
+  useStore($language);
   // Persisted, so the screen reopens on whichever mode was used last.
   const storedMode = useStore($ttmlUploadMode);
   const mode: UploadMode = storedMode === "temporary" ? "temporary" : "persistent";
@@ -51,7 +53,7 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
   const uploadingRef = useRef(uploading);
   uploadingRef.current = uploading;
 
-  const songName = SpotifyPlayer.GetName() ?? "Unknown Song";
+  const songName = SpotifyPlayer.GetName() ?? t("upload.unknownSong");
 
   /** Read + apply a file straight away — picking the file *is* the upload. */
   const startUpload = useCallback(
@@ -60,13 +62,13 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
 
       // `accept` only filters the picker — drag & drop and paste bypass it.
       if (!file.name.toLowerCase().endsWith(".ttml")) {
-        toast.error("Only .ttml files are supported.", { duration: 5000 });
+        toast.error(t("upload.onlyTtml"), { duration: 5000 });
         return;
       }
 
       const uri = SpotifyPlayer.GetUri();
       if (!uri) {
-        toast.error("No track is currently playing.", { duration: 5000 });
+        toast.error(t("ldb.noTrack"), { duration: 5000 });
         return;
       }
 
@@ -75,7 +77,7 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
 
       const reader = new FileReader();
       reader.onerror = () => {
-        toast.error("Error reading TTML file.", { duration: 5000 });
+        toast.error(t("upload.readError"), { duration: 5000 });
         setUploading(false);
       };
       reader.onload = async (e) => {
@@ -88,12 +90,12 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
             setTimeout(() => {
               fetchLyrics(uri).then(ApplyLyrics);
             }, 25);
-            toast.success("TTML saved to Local DB!", { duration: 5000 });
+            toast.success(t("upload.saved"), { duration: 5000 });
             onDone("persistent");
           } else {
             const result = ParseTTML(ttml);
             if (!result) {
-              toast.error("Failed to parse TTML.", { duration: 5000 });
+              toast.error(t("upload.parseError"), { duration: 5000 });
               setUploading(false);
               return;
             }
@@ -105,17 +107,17 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
               fetchLyrics(uri)
                 .then((lyrics) => {
                   ApplyLyrics(lyrics);
-                  toast.success("Lyrics Parsed and Applied!", { duration: 5000 });
+                  toast.success(t("upload.applied"), { duration: 5000 });
                 })
                 .catch((err) => {
-                  toast.error("Error applying lyrics", { duration: 5000 });
+                  toast.error(t("ldb.applyError"), { duration: 5000 });
                   uploadLogger.error("Error applying lyrics", err);
                 });
             }, 25);
             onDone("temporary");
           }
         } catch (err) {
-          toast.error("Upload failed.", { duration: 5000 });
+          toast.error(t("upload.failed"), { duration: 5000 });
           uploadLogger.error("TTML upload error", err);
           setUploading(false);
         }
@@ -157,14 +159,14 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
           className="sl-ldb-upload-back"
           onClick={onBack}
           disabled={uploading}
-          title="Back to Local Lyrics DB"
-          aria-label="Back"
+          title={t("upload.backTitle")}
+          aria-label={t("upload.backAria")}
         >
           <ArrowLeftIcon size={14} />
         </button>
 
-        <div className="sl-ldb-upload-modes" role="radiogroup" aria-label="Upload mode">
-          {MODES.map((m) => (
+        <div className="sl-ldb-upload-modes" role="radiogroup" aria-label={t("upload.modeAria")}>
+          {getModes().map((m) => (
             <button
               key={m.id}
               type="button"
@@ -203,10 +205,14 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
           {uploading ? <SpinnerIcon size={26} /> : <UploadIcon size={26} />}
         </span>
         <span className="sl-ldb-dropzone-title">
-          {uploading ? "Uploading…" : dragging ? "Drop to upload" : "Drop a .ttml file or click to browse"}
+          {uploading
+            ? t("upload.uploading")
+            : dragging
+              ? t("upload.dropToUpload")
+              : t("upload.dropOrClick")}
         </span>
         <span className="sl-ldb-dropzone-sub">
-          {mode === "persistent" ? "Saves to Local DB for" : "Applies once to"} {songName}
+          {mode === "persistent" ? t("upload.savesFor") : t("upload.appliesFor")} {songName}
         </span>
       </label>
     </div>

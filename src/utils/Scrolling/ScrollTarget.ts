@@ -115,3 +115,23 @@ const HasLeadBetween = (Lines: ScrollLine[], from: number, to: number): boolean 
   for (let i = from + 1; i < to; i++) if (!IsBGLine(Lines[i])) return true;
   return false;
 };
+
+/**
+ * Prevents the scroll target from stepping backwards during continuous forward
+ * playback (e.g. when an earlier overlapping line ends while a later line is
+ * already active), while still allowing backward jumps on seeks or scrubbing.
+ */
+export const ClampForwardScrollIndex = (
+  pickedIndex: number | null,
+  lastScrolledIndex: number,
+  lineCount: number,
+  allowBackward: boolean
+): number | null => {
+  if (allowBackward || lastScrolledIndex < 0 || lastScrolledIndex >= lineCount) {
+    return pickedIndex;
+  }
+  if (pickedIndex !== null && pickedIndex < lastScrolledIndex) {
+    return lastScrolledIndex;
+  }
+  return pickedIndex;
+};

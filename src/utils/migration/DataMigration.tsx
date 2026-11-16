@@ -2,6 +2,7 @@ import React from "react";
 import { flushSync } from "react-dom";
 import ReactDOM from "react-dom/client";
 import { PopupModal } from "../../components/Modal.ts";
+import { t } from "../i18n.ts";
 import { SETTINGS_KEY } from "../stores.ts";
 import { UI_STATE_KEY } from "../uiState.ts";
 
@@ -155,10 +156,8 @@ export function showMigrationModal() {
             </svg>
           </div>
 
-          <h2 className="uc-title">Settings Migration Required</h2>
-          <p className="uc-subtitle udc-desc">
-            Spicy Lyrics has updated its storage format. Your existing settings need to be migrated before you can continue. This only happens once.
-          </p>
+          <h2 className="uc-title">{t("migration.requiredTitle")}</h2>
+          <p className="uc-subtitle udc-desc">{t("migration.requiredDesc")}</p>
 
           <div className="uc-divider" />
 
@@ -170,7 +169,7 @@ export function showMigrationModal() {
               setTimeout(() => location.reload(), 1000);
             }}
           >
-            Migrate Settings
+            {t("migration.button")}
           </button>
         </div>
       );
@@ -187,10 +186,8 @@ export function showMigrationModal() {
             </svg>
           </div>
 
-          <h2 className="uc-title">Migration Complete</h2>
-          <p className="uc-subtitle udc-desc">
-            Your settings have been migrated successfully. Reloading Spotify...
-          </p>
+          <h2 className="uc-title">{t("migration.completeTitle")}</h2>
+          <p className="uc-subtitle udc-desc">{t("migration.completeDesc")}</p>
         </div>
       );
     });

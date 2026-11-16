@@ -31,7 +31,9 @@ import {
   $popupLyricsAllowed,
   $spicyLyricsVersion,
   $developerMode,
+  $language,
 } from "./utils/stores.ts";
+import { t } from "./utils/i18n.ts";
 import Global from "./components/Global/Global.ts";
 import Platform from "./components/Global/Platform.ts";
 import Session from "./components/Global/Session.ts";
@@ -232,7 +234,7 @@ async function main() {
       {
         Registered: false,
         Button: new SpotifyPlayer.Playbar.Button(
-          "Enter Fullscreen",
+          t("playbar.fullscreen"),
           `<svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" data-encore-id="icon" class="Svg-sc-ytk21e-0 Svg-img-16-icon"><path d="M6.064 10.229l-2.418 2.418L2 11v4h4l-1.647-1.646 2.418-2.418-.707-.707zM11 2l1.647 1.647-2.418 2.418.707.707 2.418-2.418L15 6V2h-4z"/></svg>`,
           async (self) => {
             if (!self.active) {
@@ -253,7 +255,7 @@ async function main() {
         Button: (
           ('documentPictureInPicture' in window)
             ? new SpotifyPlayer.Playbar.Button(
-              "Spicy Popup Lyrics",
+              t("playbar.popup"),
               Icons.PiPMode,
               () => {
                 if (IsPIP) {
@@ -342,6 +344,10 @@ async function main() {
       popupLyricsButton.element.id = "SpicyLyrics_PopupLyricsButton";
       popupLyricsButton.element.style.setProperty("display", "inline-block", "important");
     }
+    $language.listen(() => {
+      fullscreenButton.label = t("playbar.fullscreen");
+      if (popupLyricsButton) popupLyricsButton.label = t("playbar.popup");
+    });
     syncPopupLyricsButton();
     $popupLyricsAllowed.listen(syncPopupLyricsButton);
 

@@ -19,6 +19,7 @@ import { CreateLyricsContainer, DestroyAllLyricsContainers } from "./CreateLyric
 import { StripZeroWidth } from "./Utils/StripZeroWidth.ts";
 import { PickDisplayText } from "./Utils/PickDisplayText.ts";
 import { AppendLineRomanization, RomanizeUnderLine } from "./Utils/RomanizedRow.ts";
+import { appendTextWithTitleHighlight } from "./Utils/TitleMatch.ts";
 import { initLyricsVirtualizer } from "../LyricsVirtualizer.ts";
 import { ApplySongCredits, MarkLastLineSide } from "./Credits/ApplyLyricsCredits.ts";
 import { EmitApply, EmitNotApplyed } from "./OnApply.ts";
@@ -89,8 +90,11 @@ export function ApplyStaticLyrics(data: StaticLyricsData, UseRomanized: boolean 
   lines.forEach((line) => {
     const lineElem = document.createElement("div");
 
-    lineElem.textContent = StripZeroWidth(
-      PickDisplayText(line, ShowRomanized)
+    appendTextWithTitleHighlight(
+      lineElem,
+      StripZeroWidth(PickDisplayText(line, ShowRomanized)),
+      undefined,
+      true
     );
 
     if (isRtl(line.Text) && !lineElem.classList.contains("rtl")) {

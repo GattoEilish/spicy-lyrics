@@ -1598,3 +1598,112 @@
     opacity 0.4s linear,
     --SLR_SungAlpha 0.3s cubic-bezier(0.33, 0, 0.2, 1) !important;
 }
+
+/* Track Title Glow (experiment "titleLyricsGlow"): highlights any part of the
+   lyrics containing the current song's title. In syllable-synced lyrics it
+   blooms progressively word-by-word / letter-by-letter using --TitleLit (0..1);
+   in line-synced / static lyrics it illuminates the matched phrase together. */
+@property --TitleLit {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line .LineText,
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line .TitleMatch {
+  font-weight: inherit !important;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line .LineText {
+  max-width: 100%;
+}
+
+/* Preview glow (only when "titleLyricsGlowInPreview" is enabled) */
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow.Exp_TitleLyricsGlowPreview
+  .LyricsContainer
+  .LyricsContent
+  .line.NotSung
+  :is(.TitleMatch, .letterGroup.TitleMatch .letter) {
+  text-shadow:
+    0 0 var(--BlurAmount, 0px) rgba(255, 255, 255, 0.5),
+    0 0 calc(var(--BlurAmount, 0px) + 18px) rgba(255, 255, 255, 0.24),
+    0 0 calc(var(--BlurAmount, 0px) + 36px) rgba(255, 255, 255, 0.12);
+}
+
+#SpicyLyricsPage.SpicyRenderer.BloomRenderer.Exp_TitleLyricsGlow.Exp_TitleLyricsGlowPreview
+  .LyricsContainer
+  .LyricsContent
+  .SpicyLyricsScrollContainer[data-lyrics-type="Line"]
+  .line.NotSung:not(.musical-line)
+  .TitleMatch {
+  text-shadow:
+    0 0 var(--BlurAmount, 0px) rgba(255, 255, 255, 0.5),
+    0 0 calc(var(--BlurAmount, 0px) + 18px) rgba(255, 255, 255, 0.24),
+    0 0 calc(var(--BlurAmount, 0px) + 36px) rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Syllable-synced active glow (Spring & Bloom): blooms smoothly per word / letter */
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .SpicyLyricsScrollContainer[data-lyrics-type="Syllable"]
+  .line.NotSung
+  :is(.word.TitleMatch, .word:has(.TitleMatch), .letterGroup.TitleMatch .letter, .letterGroup .letter.TitleMatch) {
+  --TitleLit: 0;
+  transition: none;
+}
+
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .SpicyLyricsScrollContainer[data-lyrics-type="Syllable"]
+  .line.Active
+  :is(.word.TitleMatch, .word:has(.TitleMatch), .letterGroup.TitleMatch .letter, .letterGroup .letter.TitleMatch) {
+  transition: --TitleLit 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .SpicyLyricsScrollContainer[data-lyrics-type="Syllable"]
+  .line.Active
+  :is(.word.TitleMatch, .word .TitleMatch, .letterGroup.TitleMatch .letter, .letterGroup .letter.TitleMatch) {
+  --gradient-alpha: 1;
+  --gradient-alpha-end: 0.72;
+  text-shadow:
+    0 0 6px rgba(255, 255, 255, calc(0.95 * var(--TitleLit, 0))),
+    0 0 16px rgba(255, 255, 255, calc(0.75 * var(--TitleLit, 0))),
+    0 0 34px rgba(255, 255, 255, calc(0.45 * var(--TitleLit, 0))),
+    0 0 56px rgba(255, 255, 255, calc(0.24 * var(--TitleLit, 0)));
+}
+
+/* Fade title glow out smoothly once the line scrolls past (.Sung / .Settling) */
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .line.Sung
+  :is(.word.TitleMatch, .word .TitleMatch, .letterGroup.TitleMatch .letter, .letterGroup .letter.TitleMatch, .LineText .TitleMatch) {
+  transition: text-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Line-synced & static lyrics: illuminate the full matched phrase together */
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .SpicyLyricsScrollContainer[data-lyrics-type="Line"]
+  .line.Active:not(.musical-line)
+  .TitleMatch,
+#SpicyLyricsPage.SpicyRenderer.Exp_TitleLyricsGlow
+  .LyricsContainer
+  .LyricsContent
+  .line.static
+  .TitleMatch {
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.98);
+  text-shadow:
+    0 0 var(--BlurAmount, 0px) rgba(255, 255, 255, 1),
+    0 0 6px rgba(255, 255, 255, 0.95),
+    0 0 16px rgba(255, 255, 255, 0.75),
+    0 0 34px rgba(255, 255, 255, 0.45),
+    0 0 56px rgba(255, 255, 255, 0.24) !important;
+  transition: text-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}

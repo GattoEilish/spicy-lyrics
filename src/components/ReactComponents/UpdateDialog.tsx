@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "../../utils/i18n.ts";
 import { NoticeLink, showNotice } from "./NoticeDialog.tsx";
 
 const DISCORD_URL = "https://discord.com/invite/uqgXU5wh8j";
@@ -8,20 +9,22 @@ export const releaseNotesUrl = (version: string) =>
 
 export function showUpdatedDialog(fromVersion: string, toVersion: string) {
   showNotice({
-    title: `Updated to ${toVersion}`,
+    title: t("updatedDialog.title", { version: toVersion }),
     content: [
       <p className="sl-notice-text">
-        You were on <span className="sl-notice-version">{fromVersion}</span>. The release notes list everything that
-        changed.
+        {t("updatedDialog.bodyPrefix")}
+        <span className="sl-notice-version">{fromVersion}</span>
+        {t("updatedDialog.bodySuffix")}
       </p>,
       <p className="sl-notice-text sl-notice-text--quiet">
-        Something broke after the update? Tell us on <NoticeLink href={DISCORD_URL}>Discord</NoticeLink>.
+        {t("updatedDialog.brokenPrefix")}
+        <NoticeLink href={DISCORD_URL}>Discord</NoticeLink>.
       </p>,
     ],
     primary: {
-      label: "Read release notes",
+      label: t("updatedDialog.readNotes"),
       onClick: () => window.open(releaseNotesUrl(toVersion), "_blank"),
     },
-    secondaryLabel: "Close",
+    secondaryLabel: t("common.close"),
   });
 }

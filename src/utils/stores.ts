@@ -254,6 +254,9 @@ export const $showScrollToActive = persistAtom<boolean>("showScrollToActive", tr
 // slider value only applies once the cap is turned on.
 export const $animationFpsCapEnabled = persistAtom<boolean>("animationFpsCapEnabled", false);
 export const $animationFpsCap = persistAtom<number>("animationFpsCap", 60);
+export type Language = "en" | "it";
+export const LANGUAGES: readonly Language[] = ["en", "it"];
+export const $language = persistAtom<Language>("language", "it");
 
 // Version atom — NOT persisted, set once at startup
 export const $spicyLyricsVersion = atom<string>(

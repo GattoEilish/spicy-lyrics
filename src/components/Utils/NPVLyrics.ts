@@ -18,7 +18,9 @@ import {
   $currentLyricsData,
   $disableNpvLyrics,
   $hideNpvLyricsWhenUnavailable,
+  $language,
 } from "../../utils/stores.ts";
+import { t } from "../../utils/i18n.ts";
 import { SpotifyPlayer } from "../Global/SpotifyPlayer.ts";
 import Logger from "../../utils/Logger.ts";
 
@@ -403,7 +405,7 @@ function refreshCardUI(): void {
     lastToggleOpen = open;
     const toggle = cardEl.querySelector<HTMLElement>("#NPVCardToggle");
     if (toggle) {
-      setTooltip(toggle, open ? "Hide Lyrics" : "Show Lyrics", "toggle-tip");
+      setTooltip(toggle, open ? t("npv.hide") : t("npv.show"), "toggle-tip");
     }
   }
   if (lastExpanded !== expanded) {
@@ -412,7 +414,7 @@ function refreshCardUI(): void {
     if (maximize) {
       setTooltip(
         maximize,
-        expanded ? "Exit Expanded" : "Expand Lyrics",
+        expanded ? t("npv.exitExpanded") : t("npv.expand"),
         "maximize-tip"
       );
     }
@@ -445,7 +447,7 @@ function renderCardShell(npv: HTMLElement): boolean {
   el.id = "SpicyLyricsNPVCard";
   el.innerHTML = `
         <div class="CardHeader">
-            <span class="CardTitle">Lyrics</span>
+            <span class="CardTitle">${t("npv.title")}</span>
             <div class="CardControls">
                 <button id="NPVCardExpand" class="CardControl">${Icons.OpenPage}</button>
                 <button id="NPVCardMaximize" class="CardControl">${Icons.CardExpand}</button>
@@ -471,7 +473,7 @@ function renderCardShell(npv: HTMLElement): boolean {
       // The card guard inside PageView.Open hands the pipeline over.
       Session.Navigate({ pathname: "/SpicyLyrics" });
     });
-    setTooltip(expand, "Open Spicy Lyrics", "expand-tip");
+    setTooltip(expand, t("npv.open"), "expand-tip");
   }
 
   const maximize = cardEl.querySelector<HTMLElement>("#NPVCardMaximize");
@@ -734,6 +736,18 @@ export function initNPVLyrics(): void {
 
   watcherMaid.Give($npvLyricsOpen.listen(() => scheduleEvaluate()));
   watcherMaid.Give($npvLyricsExpanded.listen(() => scheduleEvaluate()));
+  watcherMaid.Give(
+    $language.listen(() => {
+      if (!cardEl) return;
+      const title = cardEl.querySelector<HTMLElement>(".CardTitle");
+      if (title) title.textContent = t("npv.title");
+      const expand = cardEl.querySelector<HTMLElement>("#NPVCardExpand");
+      if (expand) setTooltip(expand, t("npv.open"), "expand-tip");
+      lastToggleOpen = null;
+      lastExpanded = null;
+      applyCardVisualState();
+    })
+  );
   // The apply pipeline publishes the 404 sentinel (and clears it once real
   // lyrics land) through $currentLyricsData, so this is both the hide and the
   // un-hide trigger.

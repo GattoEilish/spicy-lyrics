@@ -1,4 +1,5 @@
 import { createTooltip } from "../../../tooltip.ts";
+import { t } from "../../../i18n.ts";
 import { IsPIP } from "../../../../components/Utils/PopupLyrics.ts";
 
 let isByCommunityAbortController: AbortController | null = null;
@@ -50,14 +51,13 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
 
   const providedByCommunitySpan = document.createElement("span");
   providedByCommunitySpan.classList.add("SongInfoNote");
-  providedByCommunitySpan.textContent =
-    "These lyrics have been provided by our community";
+  providedByCommunitySpan.textContent = t("credits.communityNote");
   songInfoElement.appendChild(providedByCommunitySpan);
 
   // The refined credits show this shorter lead instead, with the people after it on the same line.
   const communityLeadSpan = document.createElement("span");
   communityLeadSpan.classList.add("SongInfoLead");
-  communityLeadSpan.textContent = "Community lyrics";
+  communityLeadSpan.textContent = t("credits.communityLead");
   songInfoElement.appendChild(communityLeadSpan);
 
   const makerUsername = data.TTMLUploadMetadata?.Maker?.username;
@@ -101,7 +101,7 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
       madeTippys.add(
         createTooltip(profileButton, {
           ...Spicetify.TippyProps,
-          content: `View TTML Profile`,
+          content: t("credits.viewProfile"),
         })
       );
     }
@@ -126,11 +126,11 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
   };
 
   if (makerUsername) {
-    createProfileSection("Maker", "Made by");
+    createProfileSection("Maker", t("credits.madeBy"));
   }
 
   if (uploaderUsername) {
-    createProfileSection("Uploader", makerUsername ? "Uploaded by" : "Made by");
+    createProfileSection("Uploader", makerUsername ? t("credits.uploadedBy") : t("credits.madeBy"));
   }
   LyricsContainer.appendChild(songInfoElement);
 }

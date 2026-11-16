@@ -5,6 +5,8 @@ import { PageContainer } from "../Pages/PageView.ts";
 import Fullscreen from "./Fullscreen.ts";
 import { IsPIP } from "./PopupLyrics.ts";
 import { isExperimentEnabled, onExperimentChange } from "../../utils/experiments.ts";
+import { t } from "../../utils/i18n.ts";
+import { $language } from "../../utils/stores.ts";
 import { CreateTextScroller, type TextScroller } from "../../utils/TextScroller.ts";
 import { ClaimSwitchClearance } from "../../utils/ViewSwitchClearance.ts";
 
@@ -93,7 +95,7 @@ function buildBody(next: NextTrack, shown: boolean): Body {
   text.className = "NextUpText";
   const label = doc.createElement("span");
   label.className = "NextUpLabel";
-  label.textContent = "Up Next";
+  label.textContent = t("nextUp.label");
   // Each line clips a single track the scroller moves.
   const line = (className: string, value: string) => {
     const box = doc.createElement("span");
@@ -303,4 +305,8 @@ Global.Event.listen("nowbar:side-swap:after", () => {
 });
 onExperimentChange((exp) => {
   if (exp.id === "nextUpCard") sync();
+});
+$language.listen(() => {
+  const label = root?.querySelector<HTMLElement>(".NextUpLabel");
+  if (label) label.textContent = t("nextUp.label");
 });

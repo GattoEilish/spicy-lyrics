@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { t } from "../../../../utils/i18n.ts";
 import type { ProcessedTrack } from "../utils/getTracks";
 import { IconButton } from "./IconButton";
 import { PlayIcon, TrashIcon, DownloadIcon } from "./Icons";
@@ -80,8 +81,8 @@ export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDo
             <span
               className="sl-ldb-row__playing-dot"
               role="img"
-              aria-label="Currently playing"
-              title="Currently playing"
+              aria-label={t("ldb.currentlyPlaying")}
+              title={t("ldb.currentlyPlaying")}
             />
           )}
           <span className="sl-ldb-row__title" title={title}>{title}</span>
@@ -89,14 +90,14 @@ export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDo
         {artists && <span className="sl-ldb-row__artists" title={artists}>{artists}</span>}
       </div>
       <div className="sl-ldb-row__actions">
-        <IconButton icon={<PlayIcon size={14} />} onClick={onPlay} title="Play" variant="default" />
-        <IconButton icon={<DownloadIcon size={14} />} onClick={onDownload} title="Download TTML" variant="default" />
+        <IconButton icon={<PlayIcon size={14} />} onClick={onPlay} title={t("ldb.play")} variant="default" />
+        <IconButton icon={<DownloadIcon size={14} />} onClick={onDownload} title={t("ldb.download")} variant="default" />
         <IconButton
           icon={<TrashIcon size={14} />}
           onClick={handleDeleteClick}
-          title={confirmDelete ? "Confirm delete" : "Delete"}
+          title={confirmDelete ? t("ldb.confirmDelete") : t("ldb.delete")}
           variant={confirmDelete ? "danger" : "default"}
-          label={confirmDelete ? "Confirm" : undefined}
+          label={confirmDelete ? t("ldb.confirm") : undefined}
         />
       </div>
     </div>

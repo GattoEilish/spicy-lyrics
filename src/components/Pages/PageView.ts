@@ -1,4 +1,5 @@
 import { createTooltip } from "../../utils/tooltip.ts";
+import { t } from "../../utils/i18n.ts";
 import fetchLyrics, { HoldsTemporaryUpload, ShowQueueLoader } from "../../utils/Lyrics/fetchLyrics.ts";
 import { LyricsQueueRetry } from "../../utils/Lyrics/LyricsQueueRetry.ts";
 import { SkeletonMarkup } from "../../utils/Lyrics/LyricsSkeleton.ts";
@@ -28,6 +29,7 @@ import {
   $creditsFollowLastLine,
   $currentLyricsData,
   $duetLinePadding,
+  $language,
   $lineHoverBackground,
   $lyricsContainerExists,
   $lyricsSize,
@@ -757,7 +759,7 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.Close = createTooltip(closeButton, {
             ...ViewControlTooltipProps(),
-            content: `Close Page`,
+            content: t("controls.closePage"),
           });
         }
         closeButton.addEventListener("click", async () => {
@@ -790,9 +792,9 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.CompactModeToggle = createTooltip(compactModeToggle, {
             ...ViewControlTooltipProps(),
-            content: `${
-              IsCompactMode() ? "Disable Compact Mode" : "Enable Compact Mode"
-            }`,
+            content: IsCompactMode()
+              ? t("controls.disableCompact")
+              : t("controls.enableCompact"),
           });
         }
         compactModeToggle.addEventListener("click", () => {
@@ -827,7 +829,9 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.RomanizationToggle = createTooltip(romanizationToggle, {
             ...ViewControlTooltipProps(),
-            content: isRomanized ? `Disable Romanization` : `Enable Romanization`,
+            content: isRomanized
+              ? t("controls.disableRomanization")
+              : t("controls.enableRomanization"),
           });
         }
         romanizationToggle.addEventListener("click", async () => {
@@ -872,7 +876,7 @@ function AppendViewControls(ReAppend: boolean = false) {
           if (!isPip) {
             Tooltips.NowBarToggle = createTooltip(nowBarButton, {
               ...ViewControlTooltipProps(),
-              content: `NowBar`,
+              content: t("controls.nowBar"),
             });
           }
           nowBarButton.addEventListener("click", () => {
@@ -892,9 +896,9 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.FullscreenToggle = createTooltip(fullscreenBtn, {
             ...ViewControlTooltipProps(),
-            content: `${
-              Fullscreen.CinemaViewOpen ? "Fullscreen" : "Cinema View"
-            }`,
+            content: Fullscreen.CinemaViewOpen
+              ? t("controls.fullscreen")
+              : t("controls.cinemaView"),
           });
         }
         fullscreenBtn.addEventListener("click", async () => {
@@ -922,7 +926,7 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.CinemaView = createTooltip(cinemaViewBtn, {
             ...ViewControlTooltipProps(),
-            content: `Cinema View`,
+            content: t("controls.cinemaView"),
           });
         }
         cinemaViewBtn.addEventListener("click", async () => {
@@ -943,7 +947,7 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.NowBarSideToggle = createTooltip(nowBarSideToggleBtn, {
             ...ViewControlTooltipProps(),
-            content: `Swap NowBar Side`,
+            content: t("controls.swapSide"),
           });
         }
         nowBarSideToggleBtn.addEventListener("click", () => NowBar_SwapSides());
@@ -957,7 +961,7 @@ function AppendViewControls(ReAppend: boolean = false) {
       try {
         Tooltips.Settings = createTooltip(settingsButton, {
           ...ViewControlTooltipProps(),
-          content: `Spicy Lyrics Settings`,
+          content: t("controls.settings"),
         });
         settingsButton.addEventListener("click", () => {
           openSettingsPanel();
@@ -973,7 +977,7 @@ function AppendViewControls(ReAppend: boolean = false) {
         if (!isPip) {
           Tooltips.LyricsManager = createTooltip(lyricsManagerButton, {
             ...ViewControlTooltipProps(),
-            content: `Lyrics Manager`,
+            content: t("controls.lyricsManager"),
           });
         }
         lyricsManagerButton.addEventListener("click", () => {
@@ -1093,5 +1097,13 @@ $ttmlMakerMode.listen((v) => {
   if (!PageContainer) return;
   AppendViewControls(true);
 })
+
+$language.listen(() => {
+  if (!PageContainer) return;
+  const skeletonLabel = PageContainer.querySelector<HTMLElement>(".SkeletonLabel");
+  if (skeletonLabel) skeletonLabel.textContent = t("skeleton.loading");
+  AppendViewControls(true);
+  rebuildLyrics();
+});
 
 export default PageView;

@@ -37,6 +37,10 @@ import Emphasize, { createFlameGroup, type FlameGroup, type SyllablePart } from 
 import { IsLetterCapable, MinLetterCapableDuration } from "../Utils/IsLetterCapable.ts";
 import { JoinSplitWords } from "../Utils/JoinSplitWords.ts";
 import { SplitLetters } from "../Utils/SplitLetters.ts";
+import {
+  applySyllableTitleHighlight,
+  getSyllableTitleMatches,
+} from "../Utils/TitleMatch.ts";
 import { HasRenderableText, IsEmptySyllableGroup, RemoveEmptyLyricsLines } from "../../EmptyLines.ts";
 import Logger from "../../../Logger.ts";
 
@@ -361,6 +365,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
 
     const leadParts = renderableSyllables(line.Lead.Syllables, ShowRomanized);
     const leadPlans = planWords(leadParts, ShowRomanized, false);
+    const leadTitleMatches = getSyllableTitleMatches(leadParts, ShowRomanized);
 
     leadParts.forEach((lead, iL, aL) => {
       let word = document.createElement("span");
@@ -383,6 +388,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
         word = document.createElement("div");
         Emphasize(letters, word, lead, false, pacedParts(lead, ShowRomanized, letters.length), plan.Group);
         tagWordLetters(plan.WordLetters);
+        applySyllableTitleHighlight(word, leadRenderText, leadTitleMatches[iL], letters);
 
         iL === aL.length - 1
           ? word.classList.add("LastWordInLine")
@@ -398,6 +404,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
         }
       } else {
         word.textContent = leadRenderText;
+        applySyllableTitleHighlight(word, leadRenderText, leadTitleMatches[iL]);
 
         if (!isBloomRenderer()) {
           word.style.setProperty("--gradient-position", `-20%`);
@@ -477,6 +484,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
 
         const bgParts = renderableSyllables(bg.Syllables, ShowRomanized);
         const bgPlans = planWords(bgParts, ShowRomanized, true);
+        const bgTitleMatches = getSyllableTitleMatches(bgParts, ShowRomanized);
 
         bgParts.forEach((bw, bI, bA) => {
           let bwE = document.createElement("span");
@@ -496,6 +504,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
             bwE = document.createElement("div");
             Emphasize(plan.Letters, bwE, bw, true, pacedParts(bw, ShowRomanized, plan.Letters.length), plan.Group);
             tagWordLetters(plan.WordLetters);
+            applySyllableTitleHighlight(bwE, bgRenderText, bgTitleMatches[bI], plan.Letters);
 
             bI === bA.length - 1
               ? bwE.classList.add("LastWordInLine")
@@ -511,6 +520,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
             }
           } else {
             bwE.textContent = bgRenderText;
+            applySyllableTitleHighlight(bwE, bgRenderText, bgTitleMatches[bI]);
 
             if (!isBloomRenderer()) {
               bwE.style.setProperty("--gradient-position", `0%`);

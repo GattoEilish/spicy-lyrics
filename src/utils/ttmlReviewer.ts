@@ -1,6 +1,7 @@
 import { atom } from "nanostores";
 import { toast } from "sonner";
 import { type ExperimentId, EXPERIMENTS } from "./experiments.ts";
+import { t } from "./i18n.ts";
 import { PersistedSettings } from "./stores.ts";
 
 /**
@@ -46,6 +47,13 @@ export const REVIEWER_EXPERIMENTS_OFF: readonly ExperimentId[] = [
 ];
 
 export const REVIEWER_LOCK_REASON = "Locked while TTML Reviewer is on.";
+
+export function getReviewerShownLabel(shown: string): string {
+  if (shown === "Off") return t("common.off");
+  if (shown === "On") return t("common.on");
+  if (shown === "Cover Colors") return t("settings.background.style.color");
+  return shown;
+}
 
 const experimentKey = (id: ExperimentId) => `experiment:${id}`;
 const offExperiments = new Set<string>(REVIEWER_EXPERIMENTS_OFF.map(experimentKey));
@@ -129,7 +137,7 @@ export function setTtmlReviewer(on: boolean) {
     // Saved before anything changes, so a crash partway can't lose the real values.
     // Read back too: with no backup to restore from, stripping would lose them for good.
     if (!writeBackup(JSON.stringify(saved))) {
-      toast.error("Couldn't save your settings, so TTML Reviewer stayed off.", { duration: 5000 });
+      toast.error(t("settings.reviewer.saveFailed"), { duration: 5000 });
       return;
     }
     applyProfile();

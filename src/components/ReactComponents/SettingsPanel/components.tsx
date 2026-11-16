@@ -1,4 +1,5 @@
 import React, { forwardRef, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { t } from "../../../utils/i18n.ts";
 import { searchTerms } from "./model.ts";
 
 /**
@@ -573,7 +574,7 @@ export function Slider({
             className="sl-sp-slider-reset"
             onClick={() => onChange(defaultValue!)}
           >
-            Reset
+            {t("common.reset")}
           </button>
         )}
       </div>
@@ -741,7 +742,7 @@ export const SearchBar = forwardRef<
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     placeholder?: string;
   }
->(function SearchBar({ value, onChange, onKeyDown, placeholder = "Search settings" }, ref) {
+>(function SearchBar({ value, onChange, onKeyDown, placeholder }, ref) {
   return (
     <div className="sl-sp-search-wrap">
       <svg
@@ -768,8 +769,8 @@ export const SearchBar = forwardRef<
         ref={ref}
         className="sl-sp-search"
         type="search"
-        aria-label="Search all settings"
-        placeholder={placeholder}
+        aria-label={t("settings.searchAria")}
+        placeholder={placeholder ?? t("settings.searchPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.currentTarget.value)}
         onKeyDown={onKeyDown}
@@ -780,7 +781,7 @@ export const SearchBar = forwardRef<
           type="button"
           className="sl-sp-search-clear"
           onClick={() => onChange("")}
-          aria-label="Clear search"
+          aria-label={t("settings.clearSearch")}
         >
           <svg
             width="10"

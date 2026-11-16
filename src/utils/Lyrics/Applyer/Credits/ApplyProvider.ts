@@ -1,3 +1,4 @@
+import { t } from "../../../i18n.ts";
 import { CreditsRow } from "./CreditsRow.ts";
 
 export const ProviderMap = {
@@ -19,14 +20,14 @@ export function ApplyLyricsProvider(data: any, LyricsContainer: HTMLElement): vo
   const ProviderElement = document.createElement("div");
   ProviderElement.classList.add("LyricsProvider");
 
-  let providerLabel = "Unknown";
+  let providerLabel = t("credits.unknown");
   if (typeof data.source === "string") {
     const source = data.source.toLowerCase();
     const match = Object.entries(ProviderMap).find(([key]) => source.includes(key));
     if (match) providerLabel = match[1];
   }
 
-  CreditsRow(ProviderElement, "Provided by", providerLabel);
+  CreditsRow(ProviderElement, t("credits.providedBy"), providerLabel);
 
   // Own keys only: a value such as "constructor" would otherwise find Object.prototype's.
   const via =
@@ -39,7 +40,7 @@ export function ApplyLyricsProvider(data: any, LyricsContainer: HTMLElement): vo
     // Its own span, so the refined credits can mute "via" without muting the link.
     const ViaLabelElement = document.createElement("span");
     ViaLabelElement.classList.add("LyricsProviderViaLabel");
-    ViaLabelElement.textContent = "via ";
+    ViaLabelElement.textContent = t("credits.via");
     ViaElement.append(ViaLabelElement);
     if (via.url) {
       const LinkElement = document.createElement("a");

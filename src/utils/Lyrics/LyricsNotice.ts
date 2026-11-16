@@ -4,11 +4,12 @@ import Fullscreen from "../../components/Utils/Fullscreen.ts";
 import { SyncNowBarSide } from "../../components/Utils/NowBar.ts";
 import { BuildBugReport, CopyText, DISCORD_INVITE_URL } from "../BugReport.ts";
 import { IsQueueOpen } from "../../components/Utils/QueueView.ts";
+import { t, type TranslationKey } from "../i18n.ts";
 import { $showNoLyricsNotice } from "../stores.ts";
 
 type NoticeCopy = {
-  title: string;
-  body: string;
+  titleKey: TranslationKey;
+  bodyKey: TranslationKey;
   /** Offer "Try again": the cause is temporary and a refetch can clear it. */
   retry?: boolean;
   /**
@@ -20,67 +21,67 @@ type NoticeCopy = {
 
 const NOTICES: Record<string, NoticeCopy> = {
   "lyrics-not-found": {
-    title: "No lyrics for this song yet",
-    body: "We couldn't find lyrics for this track in any of our sources. New lyrics are added all the time, so check back later. If you know this song has lyrics, copy the details and send them to us so we can look into it.",
+    titleKey: "notice.lyricsNotFound.title",
+    bodyKey: "notice.lyricsNotFound.body",
     report: true,
   },
   "dj": {
-    title: "Lyrics aren't available with the DJ",
-    body: "The DJ mixes songs and voiceovers together, so there's nothing for us to line lyrics up with. Play a song directly to see its lyrics.",
+    titleKey: "notice.dj.title",
+    bodyKey: "notice.dj.body",
   },
   "ad": {
-    title: "An ad is playing",
-    body: "Lyrics come back when a song is playing.",
+    titleKey: "notice.ad.title",
+    bodyKey: "notice.ad.body",
   },
   "unknown-track": {
-    title: "We couldn't read this track",
-    body: "Spotify didn't tell us what's playing, so we don't know which lyrics to look up. Skipping to the next song and back usually fixes this.",
+    titleKey: "notice.unknownTrack.title",
+    bodyKey: "notice.unknownTrack.body",
     report: true,
   },
   "unknown-error": {
-    title: "Something went wrong",
-    body: "An unexpected error stopped the lyrics from loading. Try again, and if it keeps happening, copy the details and send them to us on Discord.",
+    titleKey: "notice.unknownError.title",
+    bodyKey: "notice.unknownError.body",
     retry: true,
     report: true,
   },
   "offline": {
-    title: "You're offline",
-    body: "Lyrics need an internet connection the first time you play a song. Songs you've played recently still have theirs saved. Reconnect and try again.",
+    titleKey: "notice.offline.title",
+    bodyKey: "notice.offline.body",
     retry: true,
   },
   "service-unavailable": {
-    title: "Lyrics are temporarily unavailable",
-    body: "Our lyrics service isn't responding right now. Nothing is wrong on your end. Give it a minute and try again.",
+    titleKey: "notice.serviceUnavailable.title",
+    bodyKey: "notice.serviceUnavailable.body",
     retry: true,
     report: true,
   },
   "rate-limited": {
-    title: "Slow down a little",
-    body: "Lots of songs were requested in a short time, so we're holding off for a moment. Wait a few seconds and try again.",
+    titleKey: "notice.rateLimited.title",
+    bodyKey: "notice.rateLimited.body",
     retry: true,
     report: true,
   },
   "status-not-200": {
-    title: "The lyrics server ran into a problem",
-    body: "Our server returned an error for this song. Try again in a moment. If it keeps happening, copy the details and send them to us on Discord.",
+    titleKey: "notice.statusNot200.title",
+    bodyKey: "notice.statusNot200.body",
     retry: true,
     report: true,
   },
   "video-track": {
-    title: "Music video lyrics aren't supported yet",
-    body: "Lyrics only work on regular audio tracks for now. Switch this song to its audio version to see them.",
+    titleKey: "notice.videoTrack.title",
+    bodyKey: "notice.videoTrack.body",
   },
   "episode-track": {
-    title: "Podcast episodes don't have lyrics",
-    body: "Spicy Lyrics only shows lyrics for songs. Podcast episodes aren't supported.",
+    titleKey: "notice.episodeTrack.title",
+    bodyKey: "notice.episodeTrack.body",
   },
   "mixed-track": {
-    title: "Video podcasts don't have lyrics",
-    body: "Spicy Lyrics only shows lyrics for songs. Video podcast episodes aren't supported.",
+    titleKey: "notice.mixedTrack.title",
+    bodyKey: "notice.mixedTrack.body",
   },
   "local-track": {
-    title: "No lyrics for local files",
-    body: "This song is a file on your computer, so we can't look it up online. You can add your own lyrics for it as a TTML file from the Local Lyrics DB.",
+    titleKey: "notice.localTrack.title",
+    bodyKey: "notice.localTrack.body",
   },
 };
 
@@ -176,9 +177,9 @@ function makeCopyButton(primary: boolean): HTMLButtonElement {
     `<span class="notice-face" data-for="${state}">${icon}<span>${label}</span></span>`;
   button.innerHTML =
     `<span class="notice-swap" aria-live="polite">` +
-    face("idle", ICONS.copy, "Copy details") +
-    face("done", ICONS.check, "Copied") +
-    face("failed", ICONS.copy, "Couldn't copy") +
+    face("idle", ICONS.copy, t("notice.copyDetails")) +
+    face("done", ICONS.check, t("common.copied")) +
+    face("failed", ICONS.copy, t("common.copyFailed")) +
     `</span>`;
   return button;
 }
@@ -198,17 +199,17 @@ export function BuildLyricsNotice(
 
   const title = document.createElement("p");
   title.className = "notice-title";
-  title.textContent = copy.title;
+  title.textContent = t(copy.titleKey);
 
   const body = document.createElement("p");
   body.className = "notice-body";
-  body.textContent = copy.body;
+  body.textContent = t(copy.bodyKey);
 
   const actions = document.createElement("div");
   actions.className = "notice-actions";
 
   if (copy.retry) {
-    const retry = makeButton(ICONS.retry, "Try again", true);
+    const retry = makeButton(ICONS.retry, t("notice.tryAgain"), true);
     retry.addEventListener("click", onRetry, { signal });
     actions.appendChild(retry);
   }
@@ -232,7 +233,7 @@ export function BuildLyricsNotice(
     actions.appendChild(copyButton);
   }
 
-  const discord = makeButton(ICONS.chat, "Get help on Discord");
+  const discord = makeButton(ICONS.chat, t("notice.getHelp"));
   discord.addEventListener("click", () => window.open(DISCORD_INVITE_URL, "_blank"), { signal });
   actions.appendChild(discord);
 
@@ -241,7 +242,9 @@ export function BuildLyricsNotice(
   if (copy.report) {
     const code = document.createElement("p");
     code.className = "notice-code";
-    code.textContent = `Code: ${descriptor}${status ? ` (${status})` : ""}`;
+    code.textContent = t("notice.code", {
+      code: `${descriptor}${status ? ` (${status})` : ""}`,
+    });
     notice.appendChild(code);
   }
 

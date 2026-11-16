@@ -10,7 +10,9 @@ import { UploadIcon, ResetIcon } from "./components/Icons";
 import { SpotifyPlayer } from "../../Global/SpotifyPlayer";
 import fetchLyrics from "../../../utils/Lyrics/fetchLyrics";
 import ApplyLyrics from "../../../utils/Lyrics/Global/Applyer";
-import { $currentLyricsData } from "../../../utils/stores";
+import { useStore } from "@nanostores/react";
+import { t } from "../../../utils/i18n.ts";
+import { $currentLyricsData, $language } from "../../../utils/stores";
 import Logger from "../../../utils/Logger.ts";
 
 const lyricsManagerLogger = new Logger("Lyrics Manager");
@@ -24,6 +26,7 @@ function sanitizeFilename(name: string): string {
 }
 
 export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
+  useStore($language);
   const [query, setQuery] = useState("");
   const { uris, loading: dbLoading, remove, getRaw } = useLyricsDB();
   const { tracksByUri, loading: tracksLoading } = useTracks(uris);
@@ -53,7 +56,7 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
   async function handleDownload(uri: string) {
     const ttml = await getRaw(uri);
     if (!ttml) {
-      toast.error("Could not retrieve TTML for this track.", { duration: 4000 });
+      toast.error(t("ldb.downloadError"), { duration: 4000 });
       return;
     }
     const track = tracksByUri.get(uri);
@@ -72,9 +75,9 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
   async function handleDelete(uri: string) {
     try {
       await remove(uri);
-      toast.success("Removed from Local DB.", { duration: 3000 });
+      toast.success(t("ldb.removed"), { duration: 3000 });
     } catch {
-      toast.error("Failed to remove entry.", { duration: 4000 });
+      toast.error(t("ldb.removeError"), { duration: 4000 });
     }
   }
 
@@ -85,16 +88,16 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
   function handleResetTTML() {
     const uri = SpotifyPlayer.GetUri();
     if (!uri) {
-      toast.error("No track is currently playing.", { duration: 4000 });
+      toast.error(t("ldb.noTrack"), { duration: 4000 });
       return;
     }
     $currentLyricsData.set("");
-    toast("TTML has been reset.", { duration: 4000 });
+    toast(t("ldb.resetDone"), { duration: 4000 });
     setTimeout(() => {
       fetchLyrics(uri)
         .then(ApplyLyrics)
         .catch((err) => {
-          toast.error("Error applying lyrics", { duration: 4000 });
+          toast.error(t("ldb.applyError"), { duration: 4000 });
           lyricsManagerLogger.error("Error applying lyrics", err);
         });
     }, 25);
@@ -103,17 +106,17 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
   return (
     <div className="sl-ldb-root">
       <div className="sl-ldb-toolbar">
-        <SearchBar value={query} onChange={setQuery} placeholder="Search saved lyrics…" />
+        <SearchBar value={query} onChange={setQuery} placeholder={t("ldb.searchPlaceholder")} />
         <IconButton
           icon={<ResetIcon size={14} />}
-          label="Reset TTML"
+          label={t("ldb.resetTtml")}
           variant="danger"
           onClick={handleResetTTML}
-          title="Clear loaded TTML for the currently playing song"
+          title={t("ldb.resetTtmlTitle")}
         />
         <IconButton
           icon={<UploadIcon size={14} />}
-          label="Upload TTML"
+          label={t("ldb.uploadTtml")}
           variant="primary"
           onClick={onUploadClick}
         />
@@ -138,7 +141,7 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
               <path d="M20 8v14M20 27.5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               <circle cx="20" cy="20" r="16.5" stroke="currentColor" strokeWidth="2"/>
             </svg>
-            <p>{query.trim() ? "No matching entries" : "No lyrics saved yet"}</p>
+            <p>{query.trim() ? t("ldb.noMatches") : t("ldb.empty")}</p>
           </div>
         ) : (
           filtered.map((uri) => (

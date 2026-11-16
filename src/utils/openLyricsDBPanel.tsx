@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { PopupModal } from "../components/Modal.ts";
 import LyricsDBPanel from "../components/ReactComponents/LyricsManager/index.tsx";
 import UploadTTMLModal from "../components/ReactComponents/LyricsManager/components/UploadTTMLModal.tsx";
+import { t } from "./i18n.ts";
 
 export function OpenLyricsDBPanel() {
   const container = document.createElement("div");
@@ -13,7 +14,7 @@ export function OpenLyricsDBPanel() {
   });
 
   PopupModal.display({
-    title: "Local Lyrics DB",
+    title: t("ldb.title"),
     content: container,
     isLarge: true,
     onClose: () => root.unmount(),
@@ -40,7 +41,7 @@ function _openUpload() {
   });
 
   PopupModal.transition({
-    title: "Upload TTML",
+    title: t("ldb.uploadTitle"),
     content: container,
     onClose: () => root.unmount(),
     closeHandler: _openDB,
@@ -56,7 +57,7 @@ function _openDB() {
   });
 
   PopupModal.transition({
-    title: "Local Lyrics DB",
+    title: t("ldb.title"),
     content: container,
     onClose: () => root.unmount(),
   });

@@ -706,10 +706,53 @@ function getSweepLetterPosition(sweep: LineSweep, wordIndex: number, letterIndex
 // 100 lit), as --SLR_LetterLit; its glow is dimmed by it (Mixed.css). The
 // tones are Mixed.css --SLR_Unlit and --SLR_Lit.
 const LetterTone = { Unlit: 0.18, Lit: 0.94 };
+const titleMatchCache = new WeakMap<HTMLElement, boolean>();
+function hasTitleMatchTarget(el: HTMLElement | undefined): boolean {
+  if (!el) return false;
+  let cached = titleMatchCache.get(el);
+  if (cached === undefined) {
+    cached =
+      el.classList.contains("TitleMatch") ||
+      !!el.parentElement?.classList.contains("TitleMatch") ||
+      !!el.querySelector(".TitleMatch");
+    titleMatchCache.set(el, cached);
+  }
+  return cached;
+}
+
+function setTitleLit(el: HTMLElement | undefined, gradient: number, isBloom: boolean): void {
+  if (!hasTitleMatchTarget(el)) return;
+  const min = isBloom ? -50 : -20;
+  const raw = Clamp((gradient - min) / (100 - min), 0, 1);
+  // Smoothstep so the glow ramps up and settles smoothly instead of stepping linearly.
+  const lit = raw * raw * (3 - 2 * raw);
+  setStyleIfChanged(el!, "--TitleLit", lit.toFixed(3), 0.005);
+}
+
+function resetLineTitleLit(line: any): void {
+  const lead = line?.Syllables?.Lead;
+  if (!Array.isArray(lead)) return;
+  for (let i = 0; i < lead.length; i++) {
+    const word = lead[i];
+    if (word?.HTMLElement) {
+      setTitleLit(word.HTMLElement, -50, true);
+    }
+    if (Array.isArray(word?.Letters)) {
+      for (let k = 0; k < word.Letters.length; k++) {
+        const letter = word.Letters[k];
+        if (letter?.HTMLElement) {
+          setTitleLit(letter.HTMLElement, -50, true);
+        }
+      }
+    }
+  }
+}
+
 function setLetterLit(letter: SplitLetter, gradient: number): void {
   const lit = Clamp((gradient + 50) / 150, 0, 1);
   const tone = LetterTone.Unlit + (LetterTone.Lit - LetterTone.Unlit) * lit;
   setStyleIfChanged(letter.HTMLElement, "--SLR_LetterLit", tone.toFixed(3), 0.005);
+  setTitleLit(letter.HTMLElement, gradient, true);
 }
 
 // Writes everything about one split letter but its gradient. Returns whether
@@ -1596,6 +1639,7 @@ export function Animate(position: number): void {
               } else {
                 setStyleIfChanged(word.HTMLElement, "--gradient-position", `${targetGradientPos}%`);
               }
+              setTitleLit(word.HTMLElement, targetGradientPos, isBloomRenderer());
               // Reduce redundant writes using thresholds for smoother performance
               setStyleIfChanged(
                 word.HTMLElement,
@@ -1890,6 +1934,7 @@ export function Animate(position: number): void {
                   stepRefreshedLetter(letter, k, waveFlame!);
                   continue;
                 }
+                setTitleLit(letter.HTMLElement, targetGradient, isBloomRenderer());
 
                 // Set spring goals (smooth animation)
                 letter.AnimatorStore.Scale.SetGoal(targetScale);
@@ -1965,6 +2010,7 @@ export function Animate(position: number): void {
                 } else {
                   setStyleIfChanged(letter.HTMLElement, "--gradient-position", `-20%`);
                 }
+                setTitleLit(letter.HTMLElement, isBloomRenderer() ? -50 : -20, isBloomRenderer());
 
                 setStyleIfChanged(
                   letter.HTMLElement,
@@ -2027,6 +2073,7 @@ export function Animate(position: number): void {
                 } else {
                   setStyleIfChanged(letter.HTMLElement, "--gradient-position", `100%`);
                 }
+                setTitleLit(letter.HTMLElement, 100, isBloomRenderer());
                 setStyleIfChanged(
                   letter.HTMLElement,
                   "transform",
@@ -2052,6 +2099,9 @@ export function Animate(position: number): void {
           }
         }
       } else if (lineState === "NotSung") {
+        if (!line.HTMLElement.classList.contains("NotSung")) {
+          resetLineTitleLit(line);
+        }
         setClass(line.HTMLElement, "NotSung", true);
         setClass(line.HTMLElement, "Sung", false);
         if (line.HTMLElement.classList.contains("Active")) {
@@ -2219,6 +2269,7 @@ export function Animate(position: number): void {
                 } else {
                   setStyleIfChanged(word.HTMLElement, "--gradient-position", "100%");
                 }
+                setTitleLit(word.HTMLElement, 100, isBloomRenderer());
                 setStyleIfChanged(
                   word.HTMLElement,
                   "--text-shadow-blur-radius",
@@ -2433,6 +2484,7 @@ export function Animate(position: number): void {
                 } else {
                   setStyleIfChanged(letter.HTMLElement, "--gradient-position", `100%`);
                 }
+                setTitleLit(letter.HTMLElement, 100, isBloomRenderer());
                 setStyleIfChanged(
                   letter.HTMLElement,
                   "transform",

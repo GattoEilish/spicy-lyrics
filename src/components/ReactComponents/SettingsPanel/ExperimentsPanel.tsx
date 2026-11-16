@@ -9,8 +9,9 @@ import {
   setExperiment,
 } from "../../../utils/experiments.ts";
 import { $backgroundStyle } from "../../../utils/stores.ts";
-import { $ttmlReviewer, REVIEWER_LOCK_REASON } from "../../../utils/ttmlReviewer.ts";
-import { BACKGROUND_STYLE_LABELS } from "./BackgroundSection.tsx";
+import { t } from "../../../utils/i18n.ts";
+import { $ttmlReviewer } from "../../../utils/ttmlReviewer.ts";
+import { getBackgroundStyleLabel } from "./BackgroundSection.tsx";
 import { Row, Toggle } from "./components.tsx";
 
 /**
@@ -93,7 +94,7 @@ export function SyncStatus() {
       aria-hidden={!syncing}
     >
       <span className="sl-sp-sync-spinner" aria-hidden="true" />
-      Checking for changes
+      {t("settings.experiments.checking")}
     </span>
   );
 }
@@ -105,7 +106,9 @@ const CONFLICTS: Partial<Record<ExperimentId, () => string | false>> = {
     const style = useStore($backgroundStyle);
     return (
       style !== "dynamic" &&
-      `Not showing: Background is set to ${BACKGROUND_STYLE_LABELS[style] ?? style}. Switch it to Dynamic (Kawarp) to use this.`
+      t("settings.experiments.canvasConflict", {
+        style: getBackgroundStyleLabel(style) ?? style,
+      })
     );
   },
 };
@@ -146,7 +149,7 @@ export function ExperimentRow({
       <span
         ref={badgeRef}
         className="sl-sp-forced-badge"
-        title="Set by Spicy Lyrics, so it can't be changed here."
+        title={t("settings.experiments.forcedTitle")}
       >
         <svg width="9" height="10" viewBox="0 0 9 10" fill="none" aria-hidden="true">
           <rect x="0.75" y="4.25" width="7.5" height="5" rx="1.25" fill="currentColor" />
@@ -156,7 +159,7 @@ export function ExperimentRow({
             strokeWidth="1.3"
           />
         </svg>
-        {forced ? "Forced on" : "Forced off"}
+        {forced ? t("settings.experiments.forcedOn") : t("settings.experiments.forcedOff")}
       </span>
     );
 
@@ -166,7 +169,7 @@ export function ExperimentRow({
       description={experiment.description}
       badge={badge}
       disabled={heldByReviewer}
-      disabledReason={searching ? REVIEWER_LOCK_REASON : undefined}
+      disabledReason={searching ? t("settings.reviewer.lockReason") : undefined}
       note={(enabled && conflict) || undefined}
     >
       <div className="sl-sp-sync-gate" data-syncing={syncing || undefined} ref={rowRef}>

@@ -21,6 +21,7 @@ import {
   setEarlySungBefore,
 } from "../Lyrics/lyrics.ts";
 import { createTooltip } from "../tooltip.ts";
+import { t } from "../i18n.ts";
 import { ScrollIntoCenterViewCSS } from "../ScrollIntoView/Center.ts";
 import { ScrollIntoTopViewCSS } from "../ScrollIntoView/Top.ts";
 import {
@@ -34,7 +35,7 @@ import {
   setBloomScrollDuration,
 } from "../Lyrics/LyricsVirtualizer.ts";
 import { IsScrollbarDragging } from "./Simplebar/ScrollSimplebar.ts";
-import { IsBGLine, PickScrollLineIndex } from "./ScrollTarget.ts";
+import { ClampForwardScrollIndex, IsBGLine, PickScrollLineIndex } from "./ScrollTarget.ts";
 
 // Define intersection types that include _LineIndex
 type LyricsLineWithIndex = LyricsLine & { _LineIndex: number };
@@ -43,10 +44,14 @@ type EnhancedLyricsItem = LyricsLineWithIndex | LyricsSyllableWithIndex;
 
 // Define proper types for variables
 let lastLine: HTMLElement | null = null;
+let lastScrolledIndex = -1;
+let lastScrolledPosition = 0;
 let isUserScrolling = false;
 let lastUserScrollTime = 0;
 let lastPosition: number = 0;
 const USER_SCROLL_COOLDOWN = 750; // 0.75 second cooldown
+// Backward seek larger than jitter resets forward-only scroll locking.
+const SEEK_BACK_THRESHOLD_MS = 250;
 // const POSITION_THRESHOLD = 500; // 500ms threshold for start/end detection
 
 // Force scroll queue mechanism
@@ -73,6 +78,11 @@ window.addEventListener("focus", () => {
 });
 // Add resize event listener to reset state when window is resized
 window.addEventListener("resize", ResetLastLine);
+
+Global.Event.listen("song:seek", () => {
+  lastScrolledIndex = -1;
+  lastScrolledPosition = 0;
+});
 
 // Create ResizeObserver to monitor LyricsContent container dimensions
 const lyricsContentObserver = new ResizeObserver(() => {
@@ -143,7 +153,7 @@ function GetScrollToActiveButton(): HTMLButtonElement | null {
     scrollToActiveTooltip = createTooltip(button, {
       ...(Spicetify as any).TippyProps,
       placement: "top",
-      content: "Scroll to the current line",
+      content: t("scrollToActive.default"),
     });
   button.addEventListener("click", () => {
     lastUserScrollTime = 0;
@@ -188,7 +198,9 @@ function SetScrollToActiveDirection(direction: ActiveLineDirection | null) {
     const appearing = !button.classList.contains("Visible");
     button.classList.toggle("Above", direction === "Above");
     button.ariaLabel =
-      direction === "Above" ? "Scroll up to the current line" : "Scroll down to the current line";
+      direction === "Above"
+        ? t("scrollToActive.above")
+        : t("scrollToActive.below");
     scrollToActiveTooltip?.setContent?.(button.ariaLabel);
     // In the capsule the chevron turns when the line crosses sides while it's up. Coming back on
     // the other side it has to start out pointing the new way, not turn around in view: settle the
@@ -295,6 +307,8 @@ function ScrollBackToLine() {
   if (!container || !sideItem || !LineElem || !allowForceScrolling) return;
   isUserScrolling = false;
   lastLine = LineElem;
+  lastScrolledIndex = sideItem._LineIndex;
+  lastScrolledPosition = SpotifyPlayer.GetPosition();
   PageContainer?.querySelector(".LyricsContainer .LyricsContent")?.classList.remove("HideLineBlur");
   ScrollTo(container, LineElem, false, GetScrollType(), sideItem._LineIndex, true);
 }
@@ -612,7 +626,27 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
     if (bloomEarly) PositionOffset = scroll.LeadMs;
   }
   const ProcessedPosition = Position + PositionOffset;
-  const currentLine = GetScrollLine(Lines, ProcessedPosition) as EnhancedLyricsItem | null;
+  const pickedLine = GetScrollLine(Lines, ProcessedPosition) as EnhancedLyricsItem | null;
+  const isDrasticMove = lastPosition !== 0 && wasDrasticPositionChange(lastPosition ?? 0, Position);
+  const allowBackward =
+    !SpotifyPlayer.IsPlaying ||
+    isForceScrollQueued ||
+    isSmoothForceScrollQueued ||
+    lastLine === null ||
+    isDrasticMove ||
+    Position < lastScrolledPosition - SEEK_BACK_THRESHOLD_MS;
+  const monotonicIndex = ClampForwardScrollIndex(
+    pickedLine?._LineIndex ?? null,
+    lastScrolledIndex,
+    Lines.length,
+    allowBackward
+  );
+  const currentLine =
+    monotonicIndex === null
+      ? null
+      : monotonicIndex === pickedLine?._LineIndex
+        ? pickedLine
+        : ({ ...Lines[monotonicIndex], _LineIndex: monotonicIndex } as EnhancedLyricsItem);
   SetBloomFocus(bloomTimed ? (currentLine?.HTMLElement ?? null) : null);
   // Once the scroll has moved on early, the lines above it count as sung.
   setEarlySungBefore(bloomEarly && currentLine ? currentLine._LineIndex : -1);
@@ -651,6 +685,8 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
     if (!scrollToLine) return;
     lastLine = scrollToLine;
     const forceScrollLineIndex = allLinesSung ? Lines.length - 1 : currentLine?._LineIndex;
+    lastScrolledIndex = forceScrollLineIndex ?? -1;
+    lastScrolledPosition = Position;
     ScrollTo(
       container,
       scrollToLine,
@@ -680,9 +716,14 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
       ? Lines[Lines.length - 1]?.HTMLElement
       : currentLine?.HTMLElement;
     if (!scrollToLine) return;
-    lastLine = scrollToLine;
     const smoothScrollLineIndex = allLinesSung ? Lines.length - 1 : currentLine?._LineIndex;
-    ScrollTo(container, scrollToLine, false, GetScrollType(), smoothScrollLineIndex);
+    // Skip re-scrolling when Continue() already placed us on the same target earlier this intro/outro.
+    if (lastLine !== scrollToLine || lastScrolledIndex !== (smoothScrollLineIndex ?? -1)) {
+      lastLine = scrollToLine;
+      lastScrolledIndex = smoothScrollLineIndex ?? -1;
+      lastScrolledPosition = Position;
+      ScrollTo(container, scrollToLine, false, GetScrollType(), smoothScrollLineIndex);
+    }
     if (smoothForceScrollQueued) {
       smoothForceScrollQueued = false; // Reset the queue after using it
     }
@@ -864,6 +905,8 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
         // Scroll if the line is different from the last auto-scrolled line
         if (!isSameLine) {
           lastLine = LineElem;
+          lastScrolledIndex = currentLine._LineIndex;
+          lastScrolledPosition = Position;
           const Scroll = () => {
             ScrollTo(container, LineElem, false, GetScrollType(), currentLine._LineIndex);
             scrolledToLastLine = false;
@@ -907,6 +950,8 @@ export function QueueSmoothForceScroll() {
 
 export function ResetLastLine() {
   lastLine = null;
+  lastScrolledIndex = -1;
+  lastScrolledPosition = 0;
   lastViewportLine = null;
   lastViewportContainer = null;
   lastIsLineInViewport = false;
@@ -952,6 +997,9 @@ export function CleanupScrollEvents() {
   wheelHandler = null;
   touchMoveHandler = null;
   scrollHandler = null;
+  lastLine = null;
+  lastScrolledIndex = -1;
+  lastScrolledPosition = 0;
   StopObservingActiveLine();
   forceScrollQueued = false; // Reset force scroll queue
   smoothForceScrollQueued = false;

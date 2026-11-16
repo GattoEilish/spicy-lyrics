@@ -23,6 +23,7 @@ import { CreateLyricsContainer, DestroyAllLyricsContainers } from "../CreateLyri
 import { StripZeroWidth } from "../Utils/StripZeroWidth.ts";
 import { PickDisplayText } from "../Utils/PickDisplayText.ts";
 import { AppendLineRomanization, RomanizeUnderLine } from "../Utils/RomanizedRow.ts";
+import { appendTextWithTitleHighlight } from "../Utils/TitleMatch.ts";
 import { initLyricsVirtualizer } from "../../LyricsVirtualizer.ts";
 import { ApplySongCredits, MarkLastLineSide } from "../Credits/ApplyLyricsCredits.ts";
 import { EmitApply, EmitNotApplyed } from "../OnApply.ts";
@@ -188,8 +189,11 @@ export function ApplyLineLyrics(data: LyricsData, UseRomanized: boolean = false)
 
   content.forEach((line, index, arr) => {
     const lineElem = document.createElement("div");
-    lineElem.textContent = StripZeroWidth(
-      PickDisplayText(line, ShowRomanized)
+    appendTextWithTitleHighlight(
+      lineElem,
+      StripZeroWidth(PickDisplayText(line, ShowRomanized)),
+      undefined,
+      true
     );
     lineElem.classList.add("line");
     if (UnderLine) AppendLineRomanization(lineElem, line);

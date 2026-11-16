@@ -137,7 +137,33 @@ type CascadeRow = {
   tweenFrom?: number;
   tweenAt?: number;
   tweenDur?: number;
+  // Initial displacement tangent (px over full tweenDur) preserved across rapid retargets.
+  tweenTangent?: number;
 };
+
+// Evaluates a timed cascade row's position, progress `u`, and instantaneous velocity (px/ms).
+function evalTimedCascade(
+  row: CascadeRow,
+  now: number
+): { pos: number; velPerMs: number; u: number } {
+  const from = row.tweenFrom!;
+  const dur = row.tweenDur!;
+  const d = row.goal - from;
+  const u = Math.min(1, Math.max(0, (now - row.tweenAt!) / dur));
+  if (row.tweenTangent !== undefined) {
+    const u2 = u * u;
+    const u3 = u2 * u;
+    const pos = from + d * (3 * u2 - 2 * u3) + row.tweenTangent * (u3 - 2 * u2 + u);
+    const dpDu = d * (6 * u - 6 * u2) + row.tweenTangent * (3 * u2 - 4 * u + 1);
+    return { pos, velPerMs: dpDu / dur, u };
+  }
+  const pos = from + d * BLOOM_SCROLL_EASE(u);
+  const eps = 1e-3;
+  const u0 = Math.max(0, u - eps);
+  const u1 = Math.min(1, u + eps);
+  const slope = u1 > u0 ? (BLOOM_SCROLL_EASE(u1) - BLOOM_SCROLL_EASE(u0)) / (u1 - u0) : 0;
+  return { pos, velPerMs: (d * slope) / dur, u };
+}
 
 // Critically damped, so a row never overshoots into its neighbours.
 function stepCascadeRow(row: CascadeRow, dt: number, w: number): void {
@@ -324,6 +350,14 @@ class LyricsVirtualizer {
     instant: boolean;
     padding: number;
   } | null = null;
+  // Tracks the active CSS smooth-scroll bounds so retries don't restart easing
+  // on the same target or mistake its own progress for an external scroll.
+  private _lastSmoothTargetTop: number | null = null;
+  private _smoothRetryStartTop: number | null = null;
+  private _lastSmoothWasClamped = false;
+  // Lowest background-line index whose fold triggered a pending re-aim, so rows
+  // at/above it stay pinned on screen while rows below shift with the target.
+  private _reaimShiftFromIndex: number | null = null;
   private _cascadeRows = new Map<number, CascadeRow>();
   // scrollTop the ripple is converging on.
   private _cascadeScroll = 0;
@@ -736,7 +770,7 @@ class LyricsVirtualizer {
       for (const { index, prev } of resized) {
         if (index < target.index) moved += (sizeOf(index) ?? prev) - prev;
       }
-      if (Math.abs(moved) >= 1) this._reaimNextFrame(v, target);
+      if (Math.abs(moved) >= 1) this._reaimSync(v, target, bgFirst);
     }
     if (toMeasure.length > 0 && this._resizeRAF === null) {
       this._resizeRAF = requestAnimationFrame(() => {
@@ -1466,7 +1500,11 @@ class LyricsVirtualizer {
       }
       // Only rows already on screen glide; a row being mounted has no previous
       // position to glide from and must appear where it belongs.
-      const wantGlide = glide && this._mountedIndices.has(item.index);
+      const wantGlide =
+        glide &&
+        this._mountedIndices.has(item.index) &&
+        !this._cascadeChain &&
+        this._cascadeRows.size === 0;
       if ((wrapper.dataset.glide === "1") !== wantGlide) {
         wrapper.style.transition = wantGlide ? LAYOUT_GLIDE_TRANSITION : "";
         wrapper.dataset.glide = wantGlide ? "1" : "";
@@ -1632,6 +1670,7 @@ class LyricsVirtualizer {
       cancelAnimationFrame(this._scrollVerifyRAF);
       this._scrollVerifyRAF = null;
     }
+    this._reaimShiftFromIndex = null;
     // A glide whatever the settings and however far: the ripple treats a long
     // move as a jump, and without Smooth Scrolling every move is one.
     if (glide) {
@@ -1683,23 +1722,78 @@ class LyricsVirtualizer {
     let step = CASCADE_STEP_MS;
     const indices = [...this._mountedIndices].sort((a, b) => a - b);
     if (!fadesAwayPreviousLines(this._scrollEl?.closest("#SpicyLyricsPage"))) {
-      // Timed: every row sets off from where it's drawn now.
+      const shiftFrom = target < 0 ? this._reaimShiftFromIndex : null;
+      if (target < 0) this._reaimShiftFromIndex = null;
+      const reaimShift = to - from;
+      // Timed: every row sets off from where it's drawn now. When a row is
+      // retargeted mid-flight (rapid line changes), carry its current velocity
+      // smoothly without re-applying the stagger delay so it doesn't stall.
       for (const idx of indices) {
         let row = this._cascadeRows.get(idx);
         if (!row) {
           row = { p: from, v: 0, goal: from, next: from, at: 0, drawn: 0 };
           this._cascadeRows.set(idx, row);
         }
+        // A retry corrects the goal of a move already under way; rows below a
+        // collapsed background line shift with the DOM change so they stay
+        // seamlessly on their screen trajectory, while rows at/above stay
+        // at their current sampled screen position and retarget smoothly to `to`
+        // without snapping back to a stale tween origin.
+        if (target < 0 && row.tweenDur) {
+          if (shiftFrom === null || idx > shiftFrom) {
+            row.p += reaimShift;
+            if (row.tweenFrom !== undefined) row.tweenFrom += reaimShift;
+          } else {
+            const sampled = evalTimedCascade(row, now);
+            const remaining = Math.max(180, (row.tweenAt ?? now) + row.tweenDur - now);
+            const nextDelta = to - sampled.pos;
+            const rawTangent = sampled.velPerMs * remaining;
+            row.p = sampled.pos;
+            row.tweenFrom = sampled.pos;
+            row.tweenAt = now;
+            row.tweenDur = remaining;
+            row.tweenTangent =
+              nextDelta * rawTangent > 0
+                ? Math.sign(nextDelta) * Math.min(Math.abs(rawTangent), Math.abs(nextDelta) * 2.5)
+                : 0;
+          }
+          row.v = 0;
+          row.at = 0;
+          row.goal = to;
+          row.next = to;
+          continue;
+        }
+        const wasInFlight =
+          row.tweenDur !== undefined &&
+          row.tweenAt !== undefined &&
+          row.tweenFrom !== undefined &&
+          now < row.tweenAt + row.tweenDur &&
+          Math.abs(row.goal - row.p) > 0.5;
+        if (wasInFlight) {
+          const sampled = evalTimedCascade(row, now);
+          const nextDelta = to - sampled.pos;
+          const rawTangent = sampled.velPerMs * bloomScrollMs;
+          row.p = sampled.pos;
+          row.tweenFrom = sampled.pos;
+          row.tweenAt = now;
+          row.tweenDur = bloomScrollMs;
+          // Clamp tangent to [0, 2.5 * delta] in the direction of travel so the
+          // Hermite curve keeps momentum and cannot overshoot the new goal.
+          row.tweenTangent =
+            nextDelta * rawTangent > 0
+              ? Math.sign(nextDelta) * Math.min(Math.abs(rawTangent), Math.abs(nextDelta) * 2.5)
+              : 0;
+        } else {
+          const below = target < 0 ? 0 : idx - target;
+          row.tweenFrom = row.p;
+          row.tweenAt = now + (below > 0 ? BLOOM_ROW_DELAYS_MS[Math.min(below, 4) - 1] : 0);
+          row.tweenDur = bloomScrollMs;
+          row.tweenTangent = undefined;
+        }
         row.v = 0;
         row.at = 0;
         row.goal = to;
         row.next = to;
-        // A retry corrects the goal of a move already under way.
-        if (target < 0 && row.tweenDur) continue;
-        const below = target < 0 ? 0 : idx - target;
-        row.tweenFrom = row.p;
-        row.tweenAt = now + (below > 0 ? BLOOM_ROW_DELAYS_MS[Math.min(below, 4) - 1] : 0);
-        row.tweenDur = bloomScrollMs;
       }
       this._cascadeScroll = to;
       for (const [idx, row] of this._cascadeRows) this._drawCascadeRow(idx, row);
@@ -1709,6 +1803,8 @@ class LyricsVirtualizer {
       }
       return;
     }
+    const springShiftFrom = target < 0 ? this._reaimShiftFromIndex : null;
+    if (target < 0) this._reaimShiftFromIndex = null;
     for (const idx of indices) {
       let row = this._cascadeRows.get(idx);
       if (!row) {
@@ -1717,7 +1813,11 @@ class LyricsVirtualizer {
         this._cascadeRows.set(idx, row);
       }
       row.tweenDur = undefined;
+      row.tweenTangent = undefined;
       if (target < 0) {
+        if (springShiftFrom === null || idx > springShiftFrom) {
+          row.p += to - from;
+        }
         if (row.at) row.next = to;
         else row.goal = to;
         continue;
@@ -1776,8 +1876,8 @@ class LyricsVirtualizer {
     const w = CASCADE_FREQUENCY * 2 * Math.PI;
     for (const [idx, row] of this._cascadeRows) {
       if (row.tweenDur) {
-        const u = Math.min(1, Math.max(0, (now - row.tweenAt!) / row.tweenDur));
-        row.p = row.tweenFrom! + (row.goal - row.tweenFrom!) * BLOOM_SCROLL_EASE(u);
+        const { pos, u } = evalTimedCascade(row, now);
+        row.p = pos;
         if (u >= 1 && row.goal === this._cascadeScroll) {
           row.p = row.goal;
           this._drawCascadeRow(idx, row);
@@ -1825,34 +1925,44 @@ class LyricsVirtualizer {
     this._setTrailingOffset(0);
     this._cascadeLastTs = null;
     this._cascadeChain = false;
+    this._reaimShiftFromIndex = null;
   }
 
-  // Where item N sits in the virtual container. Unmeasured items fall back to an
-  // average-size estimate; callers re-read this as measurements land.
-  // Re-aims `target` on the next frame, after the virtualizer's own pass has
-  // placed the rows at their new sizes. Held in the retry chain's slot, so any
-  // new scroll cancels it.
-  private _reaimNextFrame(
+  // Re-aims `target` in the same task (before paint) right after background-line
+  // sizes changed so wrapper transforms, scrollTop, and cascade offsets stay
+  // lockstep with zero 1-frame jump.
+  private _reaimSync(
     v: Virtualizer<HTMLElement, HTMLElement>,
-    target: NonNullable<LyricsVirtualizer["_lastRetryTarget"]>
+    target: NonNullable<LyricsVirtualizer["_lastRetryTarget"]>,
+    aboveIndex?: number
   ): void {
-    if (this._scrollVerifyRAF !== null) cancelAnimationFrame(this._scrollVerifyRAF);
-    this._setConverging(true);
-    this._scrollVerifyRAF = requestAnimationFrame(() => {
+    if (this._virtualizer !== v || this._lastRetryTarget !== target || !this._scrollEl) {
+      return;
+    }
+    if (aboveIndex !== undefined) {
+      this._reaimShiftFromIndex =
+        this._reaimShiftFromIndex === null
+          ? aboveIndex
+          : Math.min(this._reaimShiftFromIndex, aboveIndex);
+    }
+    if (this._scrollVerifyRAF !== null) {
+      cancelAnimationFrame(this._scrollVerifyRAF);
       this._scrollVerifyRAF = null;
-      if (this._virtualizer !== v || this._lastRetryTarget !== target || !this._scrollEl) {
-        this._setConverging(false);
-        return;
-      }
-      this._scrollToIndexWithRetry(
-        target.index,
-        target.align,
-        target.instant,
-        target.padding,
-        1,
-        this._scrollEl.scrollTop
-      );
-    });
+    }
+    if (this._resizeRAF !== null) {
+      cancelAnimationFrame(this._resizeRAF);
+      this._resizeRAF = null;
+    }
+    this._setConverging(true);
+    v._willUpdate();
+    this._scrollToIndexWithRetry(
+      target.index,
+      target.align,
+      target.instant,
+      target.padding,
+      1,
+      this._scrollEl.scrollTop
+    );
   }
 
   private _getItemRect(
@@ -1909,6 +2019,8 @@ class LyricsVirtualizer {
     // The glide is in charge now; an older retry-chain target must not count
     // as motion once it lands (see _retryMotion).
     this._lastRetryTarget = null;
+    this._lastSmoothTargetTop = null;
+    this._smoothRetryStartTop = null;
     // We are the only scrollTop writer until the glide settles — see _shouldAdjustScroll.
     this._setConverging(true);
     this._holdForGlide(v, index, align, padding);
@@ -2172,6 +2284,8 @@ class LyricsVirtualizer {
   private _onUserScrollIntent = (): void => {
     this._blockLayoutGlide(LAYOUT_GLIDE_BLOCK_MS);
     this._lastRetryTarget = null;
+    this._lastSmoothTargetTop = null;
+    this._smoothRetryStartTop = null;
     if (this._smoothRAF !== null) {
       virtualizerLogger.debug("Smooth scroll cancelled: user scroll");
       this._stopSmoothScroll();
@@ -2215,7 +2329,9 @@ class LyricsVirtualizer {
     _delta: number,
     instance: Virtualizer<HTMLElement, HTMLElement>
   ): boolean => {
-    if (this._converging) return false;
+    // Do not adjust scrollTop during convergence, cascade ripple, or an active
+    // native CSS smooth scroll — assigning scrollTop cancels the animation and jumps.
+    if (this._retryMotion()) return false;
     // romanizationToggled moves scrollTop itself.
     if (this._holdForRowResize) return false;
     // A thumb drag sets scrollTop from the pointer on every move, so a correction
@@ -2283,18 +2399,33 @@ class LyricsVirtualizer {
 
     // If something else moved the scroll between our last set and this retry
     // (user scroll, another scrollTo call, etc), abandon the retry chain so we
-    // don't fight whoever took over.
-    if (
-      expectedScrollTop !== null &&
-      Math.abs(scrollEl.scrollTop - expectedScrollTop) > 2
-    ) {
-      virtualizerLogger.debug("Aborting scrollToIndex retry: external scroll detected", {
-        expectedScrollTop,
-        actualScrollTop: scrollEl.scrollTop,
-        retry,
-      });
-      this._setConverging(false);
-      return;
+    // don't fight whoever took over. While CSS smooth scroll is active (!instant),
+    // scrollTop is expected to travel smoothly toward _lastSmoothTargetTop.
+    if (expectedScrollTop !== null) {
+      const actual = scrollEl.scrollTop;
+      let externalScroll: boolean;
+      if (instant) {
+        externalScroll = Math.abs(actual - expectedScrollTop) > 2;
+      } else if (
+        this._lastRetryTarget === null ||
+        this._lastSmoothTargetTop === null ||
+        this._smoothRetryStartTop === null
+      ) {
+        externalScroll = true;
+      } else {
+        const minExpected = Math.min(this._smoothRetryStartTop, this._lastSmoothTargetTop) - 2;
+        const maxExpected = Math.max(this._smoothRetryStartTop, this._lastSmoothTargetTop) + 2;
+        externalScroll = actual < minExpected || actual > maxExpected;
+      }
+      if (externalScroll) {
+        virtualizerLogger.debug("Aborting scrollToIndex retry: external scroll detected", {
+          expectedScrollTop,
+          actualScrollTop: actual,
+          retry,
+        });
+        this._setConverging(false);
+        return;
+      }
     }
 
     const rect = this._getItemRect(v, index);
@@ -2347,19 +2478,33 @@ class LyricsVirtualizer {
 
     if (instant) {
       scrollEl.classList.add("InstantScroll");
+      this._lastSmoothTargetTop = null;
+      this._smoothRetryStartTop = null;
+      this._lastSmoothWasClamped = false;
+      scrollEl.scrollTo({
+        top: finalScrollTop,
+        behavior: "instant",
+      });
     } else {
       scrollEl.classList.remove("InstantScroll");
+      // Only issue CSS smooth scroll when the target meaningfully changes (or an
+      // earlier call was clamped); re-calling scrollTo on the same target restarts
+      // Chromium's ease curve.
+      if (
+        retry === 0 ||
+        this._lastSmoothWasClamped ||
+        this._lastSmoothTargetTop === null ||
+        Math.abs(finalScrollTop - this._lastSmoothTargetTop) >= 1
+      ) {
+        this._smoothRetryStartTop = scrollEl.scrollTop;
+        this._lastSmoothTargetTop = finalScrollTop;
+        this._lastSmoothWasClamped = finalScrollTop - (scrollEl.scrollHeight - viewportHeight) > 1;
+        scrollEl.scrollTo({
+          top: finalScrollTop,
+          behavior: "auto",
+        });
+      }
     }
-
-    // The scroll element has `scroll-behavior: smooth !important` (Simplebar.css),
-    // relaxed via `.InstantScroll` — but that class can race with style recalc. Under
-    // smooth behavior, re-issuing the scroll each retry restarts the eased animation so
-    // an in-range target crawls and never mounts. Passing explicit `behavior` to
-    // scrollTo() overrides the CSS outright, guaranteeing an instant jump.
-    scrollEl.scrollTo({
-      top: finalScrollTop,
-      behavior: instant ? "instant" : "auto",
-    });
     // Read back: the browser clamps scrollTop to (scrollHeight - clientHeight),
     // and the spacer-padded scrollHeight may not be tall enough on retry 0 when
     // most items are still estimated.
@@ -2471,6 +2616,7 @@ class LyricsVirtualizer {
       cancelAnimationFrame(this._scrollVerifyRAF);
       this._scrollVerifyRAF = null;
     }
+    this._reaimShiftFromIndex = null;
     // Torn down anyway; no point re-rendering the window on the way out.
     this._glideHold = null;
     this._stopSmoothScroll();
@@ -2485,6 +2631,9 @@ class LyricsVirtualizer {
     // Reset convergence so the next virtualizer instance doesn't inherit a stale `true`
     // (the hook would then refuse every adjustment for the new instance).
     this._converging = false;
+    this._lastRetryTarget = null;
+    this._lastSmoothTargetTop = null;
+    this._smoothRetryStartTop = null;
     this._scrollbarRoot = null;
     this._maid?.Destroy();
     this._maid = null;

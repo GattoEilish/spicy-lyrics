@@ -240,6 +240,24 @@ export const EXPERIMENTS = [
     default: true,
     pageClass: "Exp_GroupedViewControls",
   },
+  {
+    id: "titleLyricsGlow",
+    category: "lyrics",
+    label: "Track Title Glow",
+    description:
+      "Highlights and adds a glow to any part of the lyrics that contains the current song's title, in both Bloom and Spring modes. Disable to show those lyrics without the highlight.",
+    default: true,
+    pageClass: "Exp_TitleLyricsGlow",
+  },
+  {
+    id: "titleLyricsGlowInPreview",
+    category: "lyrics",
+    label: "Track Title Glow in Preview",
+    description:
+      "Also illuminates the song title glow on upcoming lines before they are reached. Disable so the title only glows once the line is active or passed.",
+    default: false,
+    pageClass: "Exp_TitleLyricsGlowPreview",
+  },
 ] as const satisfies readonly Experiment[];
 
 /** A registry entry, narrowed to its literal `id`. */

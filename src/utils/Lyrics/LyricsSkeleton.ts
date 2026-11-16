@@ -1,7 +1,6 @@
 import { PageContainer } from "../../components/Pages/PageView.ts";
 import { isExperimentEnabled } from "../experiments.ts";
-
-const DEFAULT_LABEL = "Loading Lyrics";
+import { t } from "../i18n.ts";
 
 // Fixed widths so the placeholder reads like ragged lyric lines and never reshuffles.
 const LINE_WIDTHS = [74, 58, 86, 49, 68, 81, 55, 72, 63, 84, 52, 77, 66, 88, 57, 70];
@@ -12,7 +11,7 @@ export const SkeletonMarkup = `
       ${LINE_WIDTHS.map((w, i) => `<div class="SkeletonLine" style="width: ${w}%; --i: ${i}"></div>`).join("")}
     </div>
     <div class="SkeletonStatus" role="status" aria-live="polite">
-      <span class="SkeletonLabel">${DEFAULT_LABEL}</span><span class="SkeletonDots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="SkeletonLabel">${t("skeleton.loading")}</span><span class="SkeletonDots" aria-hidden="true"><i></i><i></i><i></i></span>
     </div>
   </div>`;
 
@@ -21,12 +20,14 @@ export const IsLyricsSkeletonEnabled = () => isExperimentEnabled("lyricsSkeleton
 const getSkeleton = () =>
   PageContainer?.querySelector<HTMLElement>(".LyricsContainer .LyricsSkeleton") ?? null;
 
-export function ShowLyricsSkeleton(label: string = DEFAULT_LABEL): void {
+export function ShowLyricsSkeleton(label?: string): void {
   const skeleton = getSkeleton();
   if (!skeleton) return;
+  const defaultLabel = t("skeleton.loading");
+  const resolvedLabel = label ?? defaultLabel;
   const labelEl = skeleton.querySelector<HTMLElement>(".SkeletonLabel");
-  if (labelEl && labelEl.textContent !== label) labelEl.textContent = label;
-  skeleton.classList.toggle("LongLabel", label !== DEFAULT_LABEL);
+  if (labelEl && labelEl.textContent !== resolvedLabel) labelEl.textContent = resolvedLabel;
+  skeleton.classList.toggle("LongLabel", resolvedLabel !== defaultLabel);
   skeleton.classList.add("active");
 }
 

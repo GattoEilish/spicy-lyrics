@@ -10,7 +10,8 @@ import Logger from "../../utils/Logger.ts";
 import { createTooltip } from "../../utils/tooltip.ts";
 import { CreateTextScroller, type TextScroller } from "../../utils/TextScroller.ts";
 import { RefreshSwitchClearance, WatchViewSwitch } from "../../utils/ViewSwitchClearance.ts";
-import { $showQueueWhenNoLyrics } from "../../utils/stores.ts";
+import { t } from "../../utils/i18n.ts";
+import { $language, $showQueueWhenNoLyrics } from "../../utils/stores.ts";
 
 /*
  * The queue in Cinema View and fullscreen. It takes the lyrics column while it's open: the
@@ -310,7 +311,7 @@ function BuildPanel(box: HTMLElement) {
   const root = doc.createElement("div");
   root.className = "QueuePanel";
   root.setAttribute("role", "region");
-  root.setAttribute("aria-label", "Up Next");
+  root.setAttribute("aria-label", t("queue.title"));
   root.setAttribute("inert", "");
   root.addEventListener("keydown", KeepKeys);
   root.addEventListener("click", ReleasePointerFocus);
@@ -322,7 +323,7 @@ function BuildPanel(box: HTMLElement) {
   header.className = "QueueHeader";
   const title = doc.createElement("h2");
   title.className = "QueueTitle";
-  title.textContent = "Up Next";
+  title.textContent = t("queue.title");
   header.append(title);
 
   const scroll = doc.createElement("div");
@@ -476,7 +477,7 @@ function Entries(state: QueueState): Entry[] {
   };
   const queued = state.queued.filter((t) => t?.uri).slice(0, QUEUED_LIMIT);
   if (queued.length) {
-    entries.push({ key: "label:queue", kind: "label", text: "In Queue", clear: true });
+    entries.push({ key: "label:queue", kind: "label", text: t("queue.inQueue"), clear: true });
     for (const track of queued) {
       entries.push({ key: RowKey(track), kind: "row", track, queued: true });
     }
@@ -497,7 +498,12 @@ function Entries(state: QueueState): Entry[] {
       entries.push({
         key,
         kind: "label",
-        text: group === "autoplay" ? "Autoplay" : context ? `Next from ${context}` : "Next Up",
+        text:
+          group === "autoplay"
+            ? t("queue.autoplay")
+            : context
+              ? t("queue.nextFrom", { context })
+              : t("queue.nextUp"),
       });
     }
     entries.push({ key: RowKey(track), kind: "row", track, queued: false });
@@ -507,7 +513,10 @@ function Entries(state: QueueState): Entry[] {
     entries.push({
       key: "more",
       kind: "more",
-      text: `${rest} more ${rest === 1 ? "song" : "songs"} after these`,
+      text:
+        rest === 1
+          ? t("queue.moreSong", { count: rest })
+          : t("queue.moreSongs", { count: rest }),
     });
   }
   return entries;
@@ -543,7 +552,7 @@ function BuildLabel(doc: Document, entry: Extract<Entry, { kind: "label" }>): HT
     const clear = doc.createElement("button");
     clear.type = "button";
     clear.className = "QueueClear";
-    clear.textContent = "Clear";
+    clear.textContent = t("queue.clear");
     clear.addEventListener("click", () => OnClear(clear));
     el.appendChild(clear);
   }
@@ -572,7 +581,10 @@ function BuildRow(doc: Document, entry: Extract<Entry, { kind: "row" }>): HTMLEl
   const play = doc.createElement("button");
   play.type = "button";
   play.className = "QueuePlay";
-  play.setAttribute("aria-label", artists ? `Play ${name} by ${artists}` : `Play ${name}`);
+  play.setAttribute(
+    "aria-label",
+    artists ? t("queue.playBy", { name, artists }) : t("queue.play", { name })
+  );
   play.addEventListener("click", () => {
     const current = rowTracks.get(row);
     // A row just moved may stand for an item Spotify has since given a new id (awaitingQueue).
@@ -615,7 +627,7 @@ function BuildRow(doc: Document, entry: Extract<Entry, { kind: "row" }>): HTMLEl
     const badge = doc.createElement("span");
     badge.className = "QueueExplicit";
     badge.textContent = "E";
-    badge.title = "Explicit";
+    badge.title = t("queue.explicit");
     title.appendChild(badge);
   }
   const sub = doc.createElement("span");
@@ -663,7 +675,7 @@ function BuildRow(doc: Document, entry: Extract<Entry, { kind: "row" }>): HTMLEl
     const remove = doc.createElement("button");
     remove.type = "button";
     remove.className = "QueueRemove";
-    remove.setAttribute("aria-label", `Remove ${name} from the queue`);
+    remove.setAttribute("aria-label", t("queue.removeFromQueue", { name }));
     remove.innerHTML = Icons.Close;
     remove.addEventListener("click", (event) => {
       const current = rowTracks.get(row);
@@ -923,18 +935,18 @@ function ShowStatus(kind: "loading" | "empty" | "error") {
   const body = doc.createElement("p");
   body.className = "QueueStatusBody";
   if (kind === "empty") {
-    title.textContent = "Nothing up next";
-    body.textContent = "Songs you add to the queue show up here.";
+    title.textContent = t("queue.emptyTitle");
+    body.textContent = t("queue.emptyBody");
     status.replaceChildren(title, body);
     return;
   }
   ClearList();
-  title.textContent = "Couldn't load the queue";
-  body.textContent = "Spotify didn't answer. Try again in a moment.";
+  title.textContent = t("queue.errorTitle");
+  body.textContent = t("queue.errorBody");
   const retry = doc.createElement("button");
   retry.type = "button";
   retry.className = "QueueRetry";
-  retry.textContent = "Try Again";
+  retry.textContent = t("common.tryAgain");
   retry.addEventListener("click", () => {
     HideStatus();
     void Load();
@@ -1028,9 +1040,12 @@ function KnownLike(track: QueueTrack): boolean | undefined {
 
 function PaintLike(button: HTMLElement, track: QueueTrack) {
   const on = KnownLike(track) === true;
-  const name = track.name || "this song";
+  const name = track.name || t("queue.thisSong");
   button.setAttribute("aria-pressed", String(on));
-  button.setAttribute("aria-label", on ? `Remove ${name} from Liked Songs` : `Save ${name} to Liked Songs`);
+  button.setAttribute(
+    "aria-label",
+    on ? t("queue.removeLiked", { name }) : t("queue.saveLiked", { name })
+  );
 }
 
 function SetLiked(uri: string, on: boolean) {
@@ -1193,8 +1208,8 @@ function AnnounceMove(row: HTMLElement) {
       found = true;
     }
   }
-  const name = rowTracks.get(row)?.name || "Song";
-  announcer.textContent = `${name} moved to ${position} of ${count}${section ? `, ${section}` : ""}`;
+  const name = rowTracks.get(row)?.name || t("queue.songFallback");
+  announcer.textContent = `${t("queue.movedTo", { name, position, count })}${section ? `, ${section}` : ""}`;
 }
 
 // --- Dragging ---
@@ -1568,7 +1583,7 @@ function OnClear(button: HTMLButtonElement) {
   if (!button.classList.contains("Armed")) {
     DisarmClear();
     button.classList.add("Armed");
-    button.textContent = "Clear Queue?";
+    button.textContent = t("queue.clearConfirm");
     clearArmed = setTimeout(DisarmClear, CLEAR_CONFIRM_MS);
     return;
   }
@@ -1583,7 +1598,7 @@ function DisarmClear() {
   clearArmed = null;
   panel?.querySelectorAll<HTMLElement>(".QueueClear.Armed").forEach((b) => {
     b.classList.remove("Armed");
-    b.textContent = "Clear";
+    b.textContent = t("queue.clear");
   });
 }
 
@@ -1621,7 +1636,7 @@ function BuildSwitch(doc: Document): HTMLElement {
   const mask = `SL_ViewSwitchMask_${Math.random().toString(36).slice(2, 8)}`;
   // Seats on either side of the track: the scroll-to-active button while it is shown
   // (ScrollToActiveLine.ts), and the romanization toggle while the lyrics can be romanized.
-  root.innerHTML = `<div class="ViewSwitchSeat ViewSwitchSeat_Scroll"></div><div class="ViewSwitchTrack" role="radiogroup" aria-label="Show"><button type="button" class="ViewSwitchOption" role="radio" data-view="lyrics" aria-label="Lyrics"></button><button type="button" class="ViewSwitchOption" role="radio" data-view="queue" aria-label="Queue"></button>${LayerSvg(
+  root.innerHTML = `<div class="ViewSwitchSeat ViewSwitchSeat_Scroll"></div><div class="ViewSwitchTrack" role="radiogroup" aria-label="${t("queue.switchLabel")}"><button type="button" class="ViewSwitchOption" role="radio" data-view="lyrics" aria-label="${t("queue.switchLyrics")}"></button><button type="button" class="ViewSwitchOption" role="radio" data-view="queue" aria-label="${t("queue.switchQueue")}"></button>${LayerSvg(
     "ViewSwitchGlyph ViewSwitchGlyph_Lyrics",
     Strokes(lyrics, "currentColor")
   )}${LayerSvg("ViewSwitchGlyph ViewSwitchGlyph_Queue", Strokes(queue, "currentColor"))}${LayerSvg(
@@ -1773,3 +1788,15 @@ for (const event of ["fullscreen:exit", "page:destroy"]) {
     RemoveSwitch();
   });
 }
+
+$language.listen(() => {
+  if (panel) {
+    panel.setAttribute("aria-label", t("queue.title"));
+    const title = panel.querySelector<HTMLElement>(".QueueTitle");
+    if (title) title.textContent = t("queue.title");
+    if (lastState) Render(lastState);
+  }
+  if (viewSwitch) {
+    SyncSwitch();
+  }
+});

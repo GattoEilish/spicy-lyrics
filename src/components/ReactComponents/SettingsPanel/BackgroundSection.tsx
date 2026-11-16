@@ -1,4 +1,6 @@
 import { useStore } from "@nanostores/react";
+import type React from "react";
+import { t } from "../../../utils/i18n.ts";
 import {
   $backgroundBlur,
   $backgroundStyle,
@@ -7,97 +9,105 @@ import {
   type BackgroundStyle,
 } from "../../../utils/stores.ts";
 import { $experiment, getExperiment } from "../../../utils/experiments.ts";
+import { getLocalizedExperiment } from "../../../utils/i18n.ts";
 import { Select, Slider, Toggle } from "./components.tsx";
 import { BackgroundIcon } from "./icons.tsx";
 import type { GroupDef, SectionDef } from "./model.ts";
 
-export const BACKGROUND_STYLE_LABELS: Record<BackgroundStyle, string> = {
-  dynamic: "Dynamic (Kawarp)",
-  artist: "Artist Image",
-  cover: "Cover Art",
-  color: "Cover Colors",
-  none: "None (Transparent)",
+export function getBackgroundStyleLabel(style: BackgroundStyle): string {
+  return t(`settings.background.style.${style}`);
+}
+
+const BackgroundStyleControl: React.FC<{ disabled: boolean; label: string }> = ({ label }) => (
+  <Select
+    label={label}
+    value={useStore($backgroundStyle)}
+    options={[...BACKGROUND_STYLES]}
+    labels={BACKGROUND_STYLES.map((style) => getBackgroundStyleLabel(style))}
+    onChange={(v) => $backgroundStyle.set(v as BackgroundStyle)}
+  />
+);
+
+const BackgroundBlurControl: React.FC<{ disabled: boolean; label: string }> = ({ disabled, label }) => (
+  <Slider
+    label={label}
+    value={useStore($backgroundBlur)}
+    min={0}
+    max={48}
+    step={1}
+    defaultValue={0}
+    unit="px"
+    onChange={(v) => $backgroundBlur.set(v)}
+    disabled={disabled}
+  />
+);
+
+const NpvDynamicBgControl: React.FC<{ disabled: boolean; label: string }> = ({ label }) => (
+  <Toggle
+    label={label}
+    checked={useStore($showNpvDynamicBg)}
+    onChange={(v) => $showNpvDynamicBg.set(v)}
+  />
+);
+
+const useBackgroundStyleNote = () => {
+  const style = useStore($backgroundStyle);
+  const canvasStage = useStore($experiment("canvasImmersive"));
+  return (
+    style !== "dynamic" &&
+    canvasStage &&
+    t("settings.background.style.note", {
+      canvasStage: getLocalizedExperiment(getExperiment("canvasImmersive")).label,
+      style: getBackgroundStyleLabel(style) ?? t("settings.background.style.thisBg"),
+    })
+  );
 };
 
-// Built once: the Control components must keep their identity across renders.
-const groups: GroupDef[] = [
-  {
-    title: "Lyrics View",
-    settings: [
-      {
-        id: "backgroundStyle",
-        label: "Background",
-        description:
-          "Dynamic (Kawarp) swirls the cover art in time with the music. Artist Image uses the artist's header photo, or the cover when there isn't one. None (Transparent) leaves the page see-through, so whatever is behind it shows.",
-        keywords: "static animated kawarp artist header cover art color colors image transparent none theme",
-        useNote: () => {
-          const style = useStore($backgroundStyle);
-          const canvasStage = useStore($experiment("canvasImmersive"));
-          return (
-            style !== "dynamic" &&
-            canvasStage &&
-            `${getExperiment("canvasImmersive").label} only plays over Dynamic (Kawarp), so it won't show with ${BACKGROUND_STYLE_LABELS[style] ?? "this background"}.`
-          );
-        },
-        Control: ({ label }) => (
-          <Select
-            label={label}
-            value={useStore($backgroundStyle)}
-            options={[...BACKGROUND_STYLES]}
-            labels={BACKGROUND_STYLES.map((style) => BACKGROUND_STYLE_LABELS[style])}
-            onChange={(v) => $backgroundStyle.set(v as BackgroundStyle)}
-          />
-        ),
-      },
-      {
-        id: "backgroundBlur",
-        label: "Image Blur",
-        description: "Softens the Artist Image and Cover Art backgrounds.",
-        keywords: "static background blur",
-        stacked: true,
-        useDisabled: () => {
-          const style = useStore($backgroundStyle);
-          return style !== "artist" && style !== "cover" && "Only applies to Artist Image and Cover Art.";
-        },
-        Control: ({ disabled, label }) => (
-          <Slider
-            label={label}
-            value={useStore($backgroundBlur)}
-            min={0}
-            max={48}
-            step={1}
-            defaultValue={0}
-            unit="px"
-            onChange={(v) => $backgroundBlur.set(v)}
-            disabled={disabled}
-          />
-        ),
-      },
-    ],
-  },
-  {
-    title: "Now Playing Sidebar",
-    settings: [
-      {
-        id: "showNpvDynamicBg",
-        label: "Animated Background",
-        description: "Show the Dynamic (Kawarp) background behind the Now Playing sidebar.",
-        keywords: "dynamic background npv now playing view kawarp",
-        Control: ({ label }) => (
-          <Toggle
-            label={label}
-            checked={useStore($showNpvDynamicBg)}
-            onChange={(v) => $showNpvDynamicBg.set(v)}
-          />
-        ),
-      },
-    ],
-  },
-];
+const useBlurDisabled = () => {
+  const style = useStore($backgroundStyle);
+  return style !== "artist" && style !== "cover" && t("settings.background.blur.disabled");
+};
 
 export const backgroundSection: SectionDef = {
   id: "background",
-  title: "Background",
+  get title() {
+    return t("settings.sections.background");
+  },
   icon: BackgroundIcon,
-  groups: () => groups,
+  groups: (): GroupDef[] => [
+    {
+      title: t("settings.background.group.lyricsView"),
+      settings: [
+        {
+          id: "backgroundStyle",
+          label: t("settings.background.style.label"),
+          description: t("settings.background.style.desc"),
+          keywords: "static animated kawarp artist header cover art color colors image transparent none theme sfondo",
+          useNote: useBackgroundStyleNote,
+          Control: BackgroundStyleControl,
+        },
+        {
+          id: "backgroundBlur",
+          label: t("settings.background.blur.label"),
+          description: t("settings.background.blur.desc"),
+          keywords: "static background blur sfocatura",
+          stacked: true,
+          useDisabled: useBlurDisabled,
+          Control: BackgroundBlurControl,
+        },
+      ],
+    },
+    {
+      title: t("settings.background.group.npv"),
+      settings: [
+        {
+          id: "showNpvDynamicBg",
+          label: t("settings.background.npv.label"),
+          description: t("settings.background.npv.desc"),
+          keywords: "dynamic background npv now playing view kawarp sfondo animato",
+          Control: NpvDynamicBgControl,
+        },
+      ],
+    },
+  ],
 };

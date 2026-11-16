@@ -3,6 +3,7 @@ import { atom } from "nanostores";
 import React, { useEffect, useState } from "react";
 import Session from "../../Global/Session.ts";
 import App from "../../../utils/app.ts";
+import { t } from "../../../utils/i18n.ts";
 import { $spicyLyricsVersion } from "../../../utils/stores.ts";
 
 interface Link {
@@ -12,8 +13,8 @@ interface Link {
   brand?: string;
 }
 
-const LINKS: Link[] = [
-  { label: "Website", url: "https://spicylyrics.org" },
+const getLinks = (): Link[] => [
+  { label: t("settings.about.website"), url: "https://spicylyrics.org" },
   { label: "Discord", url: "https://discord.com/invite/uqgXU5wh8j", brand: "88, 101, 242" },
   { label: "Ko-fi", url: "https://ko-fi.com/spikerko", brand: "255, 94, 138" },
 ];
@@ -88,14 +89,14 @@ export default function About({ status }: { status: UpdateStatus }) {
       <div className="sl-sp-about-hero">
         <span className="sl-sp-about-wordmark">Spicy Lyrics</span>
         <div className="sl-sp-about-status-row">
-          <span className="sl-sp-about-version">Version {version}</span>
+          <span className="sl-sp-about-version">{t("settings.about.version", { version })}</span>
           {(status === "latest" || status === "outdated") && (
             <>
               <span className="sl-sp-about-sep" aria-hidden="true">
                 ·
               </span>
               <span className={`sl-sp-about-status sl-sp-about-status--${status}`}>
-                {status === "latest" ? "Up to date" : "Update available"}
+                {status === "latest" ? t("settings.about.upToDate") : t("settings.about.updateAvailable")}
               </span>
             </>
           )}
@@ -105,17 +106,17 @@ export default function About({ status }: { status: UpdateStatus }) {
               className="sl-sp-about-update"
               onClick={() => Session.Navigate({ pathname: "/SpicyLyrics/Update" })}
             >
-              Update
+              {t("common.update")}
             </button>
           )}
         </div>
         <span className="sl-sp-about-build">
-          Build <span className="sl-sp-about-build-value">{build}</span>
+          {t("settings.about.build")} <span className="sl-sp-about-build-value">{build}</span>
         </span>
       </div>
 
       <div className="sl-sp-about-links">
-        {LINKS.map(({ label, url, brand }) => (
+        {getLinks().map(({ label, url, brand }) => (
           <button
             key={label}
             type="button"

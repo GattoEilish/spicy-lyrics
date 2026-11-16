@@ -7,6 +7,7 @@ import {
   DISCORD_BUGS_URL,
   DISCORD_INVITE_URL,
 } from "../../../utils/BugReport.ts";
+import { t } from "../../../utils/i18n.ts";
 import { $latestVersion } from "./About.tsx";
 import { BugIcon } from "./icons.tsx";
 import type { SectionDef } from "./model.ts";
@@ -40,8 +41,8 @@ function useCopy(after?: () => void) {
 function CopyLabel({ state, idle }: { state: CopyState; idle: string }) {
   const faces: [CopyState, string][] = [
     ["idle", idle],
-    ["done", "Copied"],
-    ["failed", "Couldn't copy"],
+    ["done", t("common.copied")],
+    ["failed", t("common.copyFailed")],
   ];
   return (
     <span className="sl-sp-bug-faces">
@@ -59,7 +60,7 @@ function CopyReportButton() {
   const [state, copy] = useCopy();
   return (
     <button type="button" className="sl-sp-btn" data-state={state} onClick={(e) => copy(e.currentTarget)}>
-      <CopyLabel state={state} idle="Copy" />
+      <CopyLabel state={state} idle={t("common.copy")} />
     </button>
   );
 }
@@ -78,31 +79,32 @@ export function BugReportPane() {
   }, [latestVersion]);
 
   const current = Session.SpicyLyrics.GetCurrentVersion()?.Text;
-  const outdated = !!latestVersion && !!current && Session.SpicyLyrics.IsBehind(
-    Session.SpicyLyrics.GetCurrentVersion(),
-    Session.SpicyLyrics.ParseVersion(latestVersion)
-  );
+  const outdated =
+    !!latestVersion &&
+    !!current &&
+    Session.SpicyLyrics.IsBehind(
+      Session.SpicyLyrics.GetCurrentVersion(),
+      Session.SpicyLyrics.ParseVersion(latestVersion)
+    );
   // The preview shows the block itself; the Markdown around it is only for Discord.
-  const preview = report.split("\n").filter((line) => line !== "```" && !line.startsWith("**")).slice(0, -1);
+  const preview = report
+    .split("\n")
+    .filter((line) => line !== "```" && !line.startsWith("**"))
+    .slice(0, -1);
 
   return (
     <div className="sl-sp-bug">
-      <p className="sl-sp-intro">
-        Copy your setup and post it in #extension-bugs on our Discord, with what went wrong. It tells us what we'd
-        otherwise have to ask.
-      </p>
+      <p className="sl-sp-intro">{t("settings.bug.intro")}</p>
 
       {outdated && (
         <div className="sl-sp-banner" role="status">
-          <span>
-            You're on {current}, and {latestVersion} is out. Update first: it may already be fixed.
-          </span>
+          <span>{t("settings.bug.outdated", { current, latest: latestVersion })}</span>
           <button
             type="button"
             className="sl-sp-about-update"
             onClick={() => Session.Navigate({ pathname: "/SpicyLyrics/Update" })}
           >
-            Update
+            {t("common.update")}
           </button>
         </div>
       )}
@@ -114,7 +116,7 @@ export function BugReportPane() {
           data-state={discordState}
           onClick={(e) => copyAndOpen(e.currentTarget)}
         >
-          <CopyLabel state={discordState} idle="Copy & open Discord" />
+          <CopyLabel state={discordState} idle={t("settings.bug.copyAndOpen")} />
         </button>
         <button
           type="button"
@@ -122,22 +124,26 @@ export function BugReportPane() {
           data-state={copyState}
           onClick={(e) => copy(e.currentTarget)}
         >
-          <CopyLabel state={copyState} idle="Copy only" />
+          <CopyLabel state={copyState} idle={t("settings.bug.copyOnly")} />
         </button>
       </div>
 
       <div className="sl-sp-bug-fineprint">
-        <p>No account details, user IDs or tokens are included.</p>
+        <p>{t("settings.bug.privacy")}</p>
         <p>
-          Not in the server yet?{" "}
-          <button type="button" className="sl-sp-bug-join-link" onClick={() => window.open(DISCORD_INVITE_URL, "_blank")}>
-            Join here
+          {t("settings.bug.notInServer")}{" "}
+          <button
+            type="button"
+            className="sl-sp-bug-join-link"
+            onClick={() => window.open(DISCORD_INVITE_URL, "_blank")}
+          >
+            {t("settings.bug.joinHere")}
           </button>
         </p>
       </div>
 
       <div className="sl-sp-group">
-        <h3 className="sl-sp-group-title">What gets copied</h3>
+        <h3 className="sl-sp-group-title">{t("settings.bug.whatCopied")}</h3>
         <div className="sl-sp-bug-preview">
           {preview.map((line, i) => (
             <div key={i} className="sl-sp-bug-line">
@@ -152,7 +158,9 @@ export function BugReportPane() {
 
 export const bugReportSection: SectionDef = {
   id: "bug",
-  title: "Got a Bug?",
+  get title() {
+    return t("settings.sections.bug");
+  },
   icon: BugIcon,
   secondary: true,
   // The tab renders BugReportPane (see index.tsx); this row is what search finds.
@@ -161,9 +169,9 @@ export const bugReportSection: SectionDef = {
       settings: [
         {
           id: "copyBugReport",
-          label: "Copy Bug Report",
-          description: "Copies your setup to paste in #extension-bugs on our Discord.",
-          keywords: "bug report issue problem broken discord help support diagnostics debug details",
+          label: t("settings.bug.rowLabel"),
+          description: t("settings.bug.rowDesc"),
+          keywords: "bug report issue problem broken discord help support diagnostics debug details segnalazione",
           Control: CopyReportButton,
         },
       ],

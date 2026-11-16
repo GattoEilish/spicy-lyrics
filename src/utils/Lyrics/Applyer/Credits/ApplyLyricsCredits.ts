@@ -1,3 +1,4 @@
+import { t } from "../../../i18n.ts";
 import { ApplyIsByCommunity } from "./ApplyIsByCommunity.tsx";
 import { ApplyLyricsProvider } from "./ApplyProvider.ts";
 import { CreditsRow } from "./CreditsRow.ts";
@@ -25,7 +26,7 @@ export function ApplyLyricsCredits(data: LyricsData, LyricsContainer: HTMLElemen
 
   const CreditsElement = document.createElement("div");
   CreditsElement.classList.add("Credits");
-  CreditsRow(CreditsElement, "Written by", data.SongWriters.join(", "));
+  CreditsRow(CreditsElement, t("credits.writtenBy"), data.SongWriters.join(", "));
   LyricsContainer.appendChild(CreditsElement);
 }
 
