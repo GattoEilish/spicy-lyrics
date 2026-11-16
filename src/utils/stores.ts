@@ -256,7 +256,11 @@ export const $animationFpsCapEnabled = persistAtom<boolean>("animationFpsCapEnab
 export const $animationFpsCap = persistAtom<number>("animationFpsCap", 60);
 export type Language = "en" | "it";
 export const LANGUAGES: readonly Language[] = ["en", "it"];
-export const $language = persistAtom<Language>("language", "it");
+const defaultLanguage: Language =
+  typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("it")
+    ? "it"
+    : "en";
+export const $language = persistAtom<Language>("language", defaultLanguage);
 
 // Version atom — NOT persisted, set once at startup
 export const $spicyLyricsVersion = atom<string>(
